@@ -1,18 +1,17 @@
 :root {
-    --glow-cyan: #00f5d4;
-    --glow-magenta: #f92c85;
-    --accent-amber: #ffc65c;
-    --base-bg: #10111a;
-    --surface-bg: rgba(22, 24, 44, 0.6);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --text-primary: #e0e1e9;
-    --text-secondary: #9a9bab;
+    --primary-color: #0078D4;
+    --secondary-color: #F5A623;
+    --background-color: #F4F4F4;
+    --surface-color: #FFFFFF;
+    --text-primary: #333333;
+    --text-secondary: #777777;
+    --border-color: #EAEAEA;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --border-radius: 8px;
+    --transition-speed: 0.3s;
+    --panel-width: 380px;
     --font-sans: 'Space Grotesk', sans-serif;
     --font-display: 'Orbitron', monospace;
-    --shadow-lg: 0 10px 30px -15px rgba(0, 0, 0, 0.5);
-    --border-radius: 12px;
-    --transition-speed: 0.3s;
-    --panel-width: 400px;
 }
 
 *, *::before, *::after {
@@ -24,27 +23,11 @@
 body {
     font-family: var(--font-sans);
     color: var(--text-primary);
-    background-color: var(--base-bg);
+    background-color: var(--background-color);
     font-size: 16px;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-}
-
-#app-background {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle at 15% 25%, hsla(172, 100%, 50%, 0.2), transparent 40%),
-                radial-gradient(circle at 85% 75%, hsla(328, 94%, 58%, 0.2), transparent 40%);
-    animation: pulse 15s infinite alternate ease-in-out;
-}
-
-@keyframes pulse {
-    0% { opacity: 0.7; transform: scale(1); }
-    100% { opacity: 1; transform: scale(1.05); }
 }
 
 .app-container {
@@ -57,33 +40,31 @@ body {
 /* --- Control Panel --- */
 .control-panel {
     width: var(--panel-width);
-    background: var(--surface-bg);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    border-right: 1px solid var(--glass-border);
-    padding: 2.5rem 2rem;
+    background: var(--surface-color);
+    border-right: 1px solid var(--border-color);
+    padding: 2rem;
     overflow-y: auto;
-    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     transition: all var(--transition-speed) ease;
     flex-shrink: 0;
+    box-shadow: var(--shadow);
 }
 .control-panel.collapsed {
     width: 0;
-    padding: 2.5rem 0;
+    padding: 2rem 0;
     opacity: 0;
     pointer-events: none;
 }
 
 .panel-toggle-btn {
     position: absolute;
-    top: 2.5rem;
+    top: 2rem;
     left: var(--panel-width);
     transform: translateX(-50%);
     width: 30px;
     height: 30px;
-    background: var(--glow-magenta);
+    background: var(--primary-color);
     border: none;
     border-radius: 50%;
     color: white;
@@ -91,13 +72,11 @@ body {
     display: grid;
     place-items: center;
     z-index: 100;
-    box-shadow: 0 0 15px var(--glow-magenta);
+    box-shadow: 0 4px 10px rgba(0, 120, 212, 0.4);
     transition: all var(--transition-speed) ease;
 }
-
-/* ** BUG FIX **: This rule now defines a clean final position for the button */
 .control-panel.collapsed ~ .panel-toggle-btn {
-    left: 15px; /* The button is 30px wide, so this centers it 15px from the screen edge */
+    left: 15px;
 }
 
 .panel-toggle-btn i {
@@ -107,12 +86,10 @@ body {
     transform: rotate(180deg);
 }
 
-
 .app-header h1 {
     font-family: var(--font-display);
-    font-size: 2.25rem;
-    color: var(--glow-cyan);
-    text-shadow: 0 0 10px var(--glow-cyan), 0 0 20px var(--glow-cyan);
+    font-size: 2rem;
+    color: var(--primary-color);
 }
 .app-header p {
     color: var(--text-secondary);
@@ -130,55 +107,51 @@ body {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background-color: var(--glow-magenta);
+    background-color: var(--primary-color);
     color: white;
     display: grid;
     place-items: center;
     font-weight: bold;
-    box-shadow: 0 0 15px var(--glow-magenta);
     flex-shrink: 0;
 }
 .section-header h2 {
     font-family: var(--font-display);
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     color: var(--text-primary);
 }
 
 .drop-zone {
-    border: 2px dashed var(--glass-border);
-    background: rgba(0, 245, 212, 0.05);
+    border: 2px dashed var(--border-color);
+    background: #FAFAFA;
     border-radius: var(--border-radius);
     padding: 2rem;
     text-align: center;
     transition: all var(--transition-speed);
 }
 .drop-zone:hover, .drop-zone.dragover {
-    border-color: var(--glow-cyan);
-    background: rgba(0, 245, 212, 0.1);
-    transform: translateY(-5px);
-    box-shadow: 0 0 20px rgba(0, 245, 212, 0.2);
+    border-color: var(--primary-color);
+    background: #F0F8FF;
 }
 .drop-zone i {
     font-size: 2.5rem;
-    color: var(--glow-cyan);
+    color: var(--primary-color);
     margin-bottom: 1rem;
-    text-shadow: 0 0 10px var(--glow-cyan);
 }
 
 /* --- Form & Buttons --- */
 .form-input, .form-textarea, .comparison-modes button {
-    background-color: rgba(0,0,0,0.3);
-    border: 1px solid var(--glass-border);
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-color);
     color: var(--text-primary);
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 0.75rem;
     transition: all var(--transition-speed);
     width: 100%;
 }
 .form-input:focus, .form-textarea:focus {
     outline: none;
-    border-color: var(--glow-cyan);
-    box-shadow: 0 0 0 3px rgba(0, 245, 212, 0.3);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.2);
 }
 
 .comparison-modes {
@@ -190,11 +163,12 @@ body {
     cursor: pointer;
     width: auto;
     flex-grow: 1;
+    background: #F9F9F9;
 }
 .comparison-modes button.selected {
-    background-color: var(--glow-cyan);
-    color: var(--base-bg);
-    border-color: var(--glow-cyan);
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
     font-weight: bold;
 }
 
@@ -205,15 +179,15 @@ body {
     font-weight: bold;
     cursor: pointer;
     border: none;
-    border-radius: 8px;
-    background: linear-gradient(45deg, var(--glow-magenta), var(--glow-cyan));
+    border-radius: 6px;
+    background: var(--primary-color);
     color: white;
-    box-shadow: 0 4px 20px -5px rgba(249, 44, 133, 0.6);
+    box-shadow: 0 4px 10px rgba(0, 120, 212, 0.3);
     transition: all var(--transition-speed);
 }
 .button-primary:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 7px 25px -8px rgba(0, 245, 212, 0.8);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 120, 212, 0.4);
 }
 
 /* --- Dashboard Area --- */
@@ -229,7 +203,6 @@ body {
         "chart    insights";
     gap: 1.5rem;
     overflow-y: auto;
-    transition: all var(--transition-speed) ease;
 }
 .dashboard-header {
     grid-area: header;
@@ -245,36 +218,25 @@ body {
     gap: 1.5rem;
 }
 .kpi-card {
-    background: var(--surface-bg);
-    border: 1px solid var(--glass-border);
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     padding: 1.5rem;
-    position: relative;
-    overflow: hidden;
+    box-shadow: var(--shadow);
 }
-.kpi-card::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle, var(--glow-cyan), transparent 80%);
-    opacity: 0;
-    transition: opacity var(--transition-speed);
-    animation: rotate 8s linear infinite;
+.kpi-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary-color);
 }
-.kpi-card:hover::before { opacity: 0.1; }
-@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.kpi-value { font-size: 2.25rem; font-weight: bold; color: var(--glow-cyan); }
 
 /* --- Chart & Insights --- */
 .chart-container, .insights-container {
     grid-area: chart;
-    background: var(--surface-bg);
-    border: 1px solid var(--glass-border);
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
     padding: 1.5rem;
@@ -289,34 +251,32 @@ body {
 }
 .placeholder-icon {
     font-size: 4rem;
-    color: var(--glow-magenta);
+    color: var(--primary-color);
     opacity: 0.5;
 }
 
 .chart-type-switcher {
     display: flex;
-    background: rgba(0,0,0,0.3);
-    border-radius: 8px;
+    background: #F9F9F9;
+    border-radius: 6px;
     padding: 4px;
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--border-color);
 }
 .chart-type-btn {
     background: transparent;
     border: none;
     color: var(--text-secondary);
     padding: 0.5rem 0.75rem;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
 }
 .chart-type-btn.active, .chart-type-btn:hover {
-    background: var(--glow-magenta);
+    background: var(--primary-color);
     color: white;
-    text-shadow: 0 0 5px white;
 }
 .insights-header i {
-    color: var(--accent-amber);
-    text-shadow: 0 0 10px var(--accent-amber);
+    color: var(--secondary-color);
 }
 
 /* Utility Classes */
@@ -328,6 +288,6 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--base-bg); }
-::-webkit-scrollbar-thumb { background: var(--glow-magenta); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #ff4dab; }
+::-webkit-scrollbar-track { background: var(--background-color); }
+::-webkit-scrollbar-thumb { background: #CCCCCC; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #AAAAAA; }

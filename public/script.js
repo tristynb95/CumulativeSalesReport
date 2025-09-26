@@ -1,98 +1,97 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- STATE & CONFIG --- //
-    let salesChart = null;
-    let historicalData = [];
-    let currentChartType = 'line';
-    const timeSlots = Array.from({ length: 28 }, (_, i) => {
-        const hour = Math.floor(i / 2) + 5;
-        const minute = i % 2 === 0 ? '00' : '30';
-        return `${String(hour).padStart(2, '0')}:${minute}`;
-    });
-    const lineColors = ['#00F5D4', '#FFC65C', '#F92C85', '#B8E986', '#7ED321', '#9013FE'];
-    const comparisonModes = {
-        average: 'Average Weekday',
-        top_weekday: 'Record By Weekday',
-        worst_days: 'Lowest Sales',
-        specific: 'Specific Days',
-        same_day_last_week: 'Last Week',
-        same_date_last_year: 'Last Year (Date)',
-        same_day_last_year: 'Last Year (Day)',
+
+    // --- STATE MANAGEMENT --- //
+    const state = {
+        salesChart: null,
+        historicalData: [],
+        currentChartType: 'line',
+        timeSlots: Array.from({ length: 28 }, (_, i) => {
+            const hour = Math.floor(i / 2) + 5;
+            const minute = i % 2 === 0 ? '00' : '30';
+            return `${String(hour).padStart(2, '0')}:${minute}`;
+        }),
+        lineColors: ['#0078D4', '#F5A623', '#4CAF50', '#E91E63', '#9C27B0', '#FF5722'],
+        comparisonModes: {
+            average: 'Average Weekday',
+            top_weekday: 'Record By Weekday',
+            worst_days: 'Lowest Sales',
+            specific: 'Specific Days',
+            same_day_last_week: 'Last Week',
+            same_date_last_year: 'Last Year (Date)',
+            same_day_last_year: 'Last Year (Day)',
+        }
     };
 
     // --- DOM ELEMENTS --- //
-    const excelFileInput = document.getElementById('excel-file-input');
-    const uploadBtn = document.getElementById('upload-btn');
-    const dropZone = document.getElementById('drop-zone');
-    const fileStatus = document.getElementById('file-status');
-    const updateChartBtn = document.getElementById('update-chart-btn');
-    const chartError = document.getElementById('chart-error');
-    const comparisonModesContainer = document.getElementById('comparison-modes');
-    const additionalControlsContainer = document.getElementById('additional-controls');
-    const todaysSalesInput = document.getElementById('todays-sales');
-    const salesDateInput = document.getElementById('sales-date');
-    const analysisPanel = document.getElementById('analysis-panel');
-    const generatePanel = document.getElementById('generate-panel');
-    const chartPlaceholder = document.getElementById('chart-placeholder');
-    const chartPanel = document.getElementById('chart-panel');
-    const fullscreenBtn = document.getElementById('fullscreen-btn');
-    const fileInfoContainer = document.getElementById('file-info-container');
-    const fileNameEl = document.getElementById('file-name');
-    const deleteFileBtn = document.getElementById('delete-file-btn');
-    const kpiContainer = document.getElementById('kpi-container');
-    const chartTypeSwitcher = document.querySelector('.chart-type-switcher');
-    const insightsContent = document.getElementById('insights-content');
-    const panelToggleBtn = document.getElementById('panel-toggle-btn');
-    const controlPanel = document.getElementById('control-panel');
+    const ui = {
+        excelFileInput: document.getElementById('excel-file-input'),
+        uploadBtn: document.getElementById('upload-btn'),
+        dropZone: document.getElementById('drop-zone'),
+        fileStatus: document.getElementById('file-status'),
+        updateChartBtn: document.getElementById('update-chart-btn'),
+        chartError: document.getElementById('chart-error'),
+        comparisonModesContainer: document.getElementById('comparison-modes'),
+        additionalControlsContainer: document.getElementById('additional-controls'),
+        todaysSalesInput: document.getElementById('todays-sales'),
+        salesDateInput: document.getElementById('sales-date'),
+        analysisPanel: document.getElementById('analysis-panel'),
+        generatePanel: document.getElementById('generate-panel'),
+        chartPlaceholder: document.getElementById('chart-placeholder'),
+        chartPanel: document.getElementById('chart-panel'),
+        fullscreenBtn: document.getElementById('fullscreen-btn'),
+        fileInfoContainer: document.getElementById('file-info-container'),
+        fileNameEl: document.getElementById('file-name'),
+        deleteFileBtn: document.getElementById('delete-file-btn'),
+        kpiContainer: document.getElementById('kpi-container'),
+        chartTypeSwitcher: document.querySelector('.chart-type-switcher'),
+        insightsContent: document.getElementById('insights-content'),
+        panelToggleBtn: document.getElementById('panel-toggle-btn'),
+        controlPanel: document.getElementById('control-panel'),
+    };
 
-
-    // --- INITIALIZATION --- //
+    // --- APP INITIALIZATION --- //
     const init = () => {
-        salesDateInput.valueAsDate = new Date();
+        ui.salesDateInput.valueAsDate = new Date();
         populateComparisonModes();
         setupEventListeners();
         setupChartDefaults();
     };
 
     const setupChartDefaults = () => {
-        Chart.defaults.color = '#BDBDBD';
+        Chart.defaults.color = '#777777';
         Chart.defaults.font.family = "'Space Grotesk', sans-serif";
-        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+        Chart.defaults.borderColor = 'rgba(0, 0, 0, 0.05)';
     };
 
     const populateComparisonModes = () => {
-        Object.entries(comparisonModes).forEach(([value, label]) => {
+        Object.entries(state.comparisonModes).forEach(([value, label]) => {
             const button = document.createElement('button');
             button.dataset.mode = value;
             button.textContent = label;
-            comparisonModesContainer.appendChild(button);
+            ui.comparisonModesContainer.appendChild(button);
         });
-        comparisonModesContainer.querySelector('button')?.classList.add('selected');
+        ui.comparisonModesContainer.querySelector('button')?.classList.add('selected');
     };
 
-    // --- UI & EVENT HANDLERS --- //
+    // --- EVENT HANDLERS & UI --- //
     const setupEventListeners = () => {
-        uploadBtn.addEventListener('click', () => excelFileInput.click());
-        excelFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-        deleteFileBtn.addEventListener('click', handleDeleteFile);
-        updateChartBtn.addEventListener('click', handleUpdateChart);
-        comparisonModesContainer.addEventListener('click', handleModeSelection);
-        fullscreenBtn.addEventListener('click', () => chartPanel.requestFullscreen());
-        chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
-        panelToggleBtn.addEventListener('click', toggleControlPanel);
+        ui.uploadBtn.addEventListener('click', () => ui.excelFileInput.click());
+        ui.excelFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+        ui.deleteFileBtn.addEventListener('click', handleDeleteFile);
+        ui.updateChartBtn.addEventListener('click', handleUpdateChart);
+        ui.comparisonModesContainer.addEventListener('click', handleModeSelection);
+        ui.fullscreenBtn.addEventListener('click', () => ui.chartPanel.requestFullscreen().catch(err => console.error(err)));
+        ui.chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
+        ui.panelToggleBtn.addEventListener('click', toggleControlPanel);
         setupDragAndDrop();
     };
-    
+
     const setupDragAndDrop = () => {
-        dropZone.addEventListener('dragover', e => { 
-            e.preventDefault(); 
-            dropZone.classList.add('dragover'); 
-        });
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
-        dropZone.addEventListener('drop', e => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
+        ['dragover', 'drop'].forEach(eventName => ui.dropZone.addEventListener(eventName, e => e.preventDefault()));
+        ui.dropZone.addEventListener('dragover', () => ui.dropZone.classList.add('dragover'));
+        ui.dropZone.addEventListener('dragleave', () => ui.dropZone.classList.remove('dragover'));
+        ui.dropZone.addEventListener('drop', e => {
+            ui.dropZone.classList.remove('dragover');
             handleFile(e.dataTransfer.files[0]);
         });
     };
@@ -107,38 +106,38 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleDeleteFile = () => {
-        historicalData = [];
-        excelFileInput.value = '';
-        fileInfoContainer.classList.add('hidden');
-        dropZone.style.display = 'block';
-        analysisPanel.classList.add('disabled');
-        generatePanel.classList.add('disabled');
+        state.historicalData = [];
+        ui.excelFileInput.value = '';
+        ui.fileInfoContainer.classList.add('hidden');
+        ui.dropZone.style.display = 'block';
+        ui.analysisPanel.classList.add('disabled');
+        ui.generatePanel.classList.add('disabled');
         updateFileStatus('', false);
-        if (salesChart) {
-            salesChart.destroy();
-            salesChart = null;
-            chartPlaceholder.style.display = 'flex';
+        if (state.salesChart) {
+            state.salesChart.destroy();
+            state.salesChart = null;
+            ui.chartPlaceholder.style.display = 'flex';
         }
-        kpiContainer.innerHTML = '';
-        insightsContent.innerHTML = '<p class="no-data-text">Generate a chart to see automated insights here.</p>';
+        ui.kpiContainer.innerHTML = '';
+        ui.insightsContent.innerHTML = '<p class="no-data-text">Generate a chart to see automated insights here.</p>';
     };
 
     const toggleControlPanel = () => {
-        controlPanel.classList.toggle('collapsed');
-        panelToggleBtn.querySelector('i').classList.toggle('fa-chevron-left');
-        panelToggleBtn.querySelector('i').classList.toggle('fa-chevron-right');
+        ui.controlPanel.classList.toggle('collapsed');
+        ui.panelToggleBtn.querySelector('i').classList.toggle('fa-chevron-left');
+        ui.panelToggleBtn.querySelector('i').classList.toggle('fa-chevron-right');
     };
 
     const handleChartTypeSwitch = (e) => {
         const btn = e.target.closest('.chart-type-btn');
         if (!btn || btn.classList.contains('active')) return;
 
-        currentChartType = btn.dataset.chartType;
+        state.currentChartType = btn.dataset.chartType;
         document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        if (salesChart || historicalData.length > 0) {
-           handleUpdateChart();
+        if (state.salesChart || state.historicalData.length > 0) {
+            handleUpdateChart();
         }
     };
 
@@ -152,13 +151,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleUpdateChart = () => {
-        chartError.textContent = '';
+        ui.chartError.textContent = '';
         let todayDataset = null;
 
-        if (todaysSalesInput.value.trim() !== '') {
-            const parsedResult = parseComplexSalesData(todaysSalesInput.value);
+        if (ui.todaysSalesInput.value.trim() !== '') {
+            const parsedResult = parseComplexSalesData(ui.todaysSalesInput.value);
             if (!parsedResult) {
-                chartError.textContent = "Could not parse today's sales data.";
+                ui.chartError.textContent = "Could not parse today's sales data.";
                 return;
             }
             const alignedSales = alignSalesData(parsedResult);
@@ -166,24 +165,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 label: `Today's Sales`,
                 data: calculateCumulative(alignedSales),
                 raw: alignedSales,
-                borderColor: '#F92C85',
+                borderColor: '#E91E63',
                 borderWidth: 3,
                 pointRadius: 0,
                 tension: 0.4,
-                fill: true
+                fill: true,
+                backgroundColor: 'rgba(233, 30, 99, 0.1)',
             };
         }
-        
+
         let datasets = todayDataset ? [todayDataset] : [];
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         let comparisonData = null;
-        if (selectedMode && historicalData.length > 0) {
+        if (selectedMode && state.historicalData.length > 0) {
             comparisonData = getComparisonData(selectedMode);
             if (comparisonData) datasets.push(...comparisonData);
         }
 
-        if (datasets.length === 0 && currentChartType !== 'heatmap') {
-            chartError.textContent = "No data available to generate chart.";
+        if (datasets.length === 0 && state.currentChartType !== 'heatmap') {
+            ui.chartError.textContent = "No data available to generate chart.";
             return;
         }
 
@@ -193,20 +193,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const updateFileStatus = (message, isError = false) => {
-        fileStatus.textContent = message;
-        fileStatus.style.color = isError ? '#F92C85' : '#00F5D4';
+        ui.fileStatus.textContent = message;
+        ui.fileStatus.style.color = isError ? '#D32F2F' : '#0078D4';
     };
 
-    const parseDDMMYYYY = (dateString) => {
-        const parts = String(dateString).split(/[/.-]/);
-        if (parts.length === 3) {
-            const [day, month, year] = parts.map(Number);
-            const fullYear = year < 100 ? (year > 50 ? 1900 + year : 2000 + year) : year;
-            return new Date(Date.UTC(fullYear, month - 1, day));
-        }
-        return new Date(dateString);
-    };
-    
     // --- DATA PROCESSING & ANALYSIS --- //
     const processFile = (fileContent, fileName) => {
         try {
@@ -224,9 +214,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const date = parseDDMMYYYY(row[0]);
                 if (isNaN(date.getTime())) return null;
 
-                const alignedSales = Array(timeSlots.length).fill(0);
+                const alignedSales = Array(state.timeSlots.length).fill(0);
                 fileTimeSlots.forEach((slot, index) => {
-                    const mainIndex = timeSlots.indexOf(slot);
+                    const mainIndex = state.timeSlots.indexOf(slot);
                     if (mainIndex !== -1) {
                         alignedSales[mainIndex] = parseFloat(row.slice(1)[index]) || 0;
                     }
@@ -238,7 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return {
                     id: date.toISOString().split('T')[0],
                     date: date.toISOString(),
-                    // ** BUG FIX **: Reverted to toLocaleDateString for reliable day of week extraction
                     dayOfWeek: date.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' }),
                     sales: alignedSales,
                     totalSales
@@ -247,14 +236,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (processedData.length === 0) throw new Error("No valid data rows found.");
 
-            historicalData = processedData;
-            updateFileStatus(`${historicalData.length} records loaded successfully.`);
-            analysisPanel.classList.remove('disabled');
-            generatePanel.classList.remove('disabled');
-
-            fileNameEl.textContent = fileName;
-            fileInfoContainer.classList.remove('hidden');
-            dropZone.style.display = 'none';
+            state.historicalData = processedData;
+            updateFileStatus(`${state.historicalData.length} records loaded successfully.`);
+            ui.analysisPanel.classList.remove('disabled');
+            ui.generatePanel.classList.remove('disabled');
+            ui.fileNameEl.textContent = fileName;
+            ui.fileInfoContainer.classList.remove('hidden');
+            ui.dropZone.style.display = 'none';
 
             const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
             if (selectedMode) renderAdditionalControls(selectedMode);
@@ -264,9 +252,19 @@ document.addEventListener('DOMContentLoaded', () => {
             handleDeleteFile();
         }
     };
-    
+
+    const parseDDMMYYYY = (dateString) => {
+        const parts = String(dateString).split(/[/.-]/);
+        if (parts.length === 3) {
+            const [day, month, year] = parts.map(Number);
+            const fullYear = year < 100 ? (year > 50 ? 1900 + year : 2000 + year) : year;
+            return new Date(Date.UTC(fullYear, month - 1, day));
+        }
+        return new Date(dateString);
+    };
+
     const renderAdditionalControls = (mode) => {
-        additionalControlsContainer.innerHTML = '';
+        ui.additionalControlsContainer.innerHTML = '';
         if (['average', 'record_days', 'worst_days', 'specific'].includes(mode)) {
             const div = document.createElement('div');
             div.className = 'control-group';
@@ -279,15 +277,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 div.appendChild(createCheckboxes(mode));
             }
-            additionalControlsContainer.appendChild(div);
+            ui.additionalControlsContainer.appendChild(div);
         }
     };
-    
+
     const createCheckboxes = (mode) => {
         const div = document.createElement('div');
         let data, label;
 
-        const sortAndSlice = (sortFn, slice) => [...historicalData].sort(sortFn).slice(0, slice);
+        const sortAndSlice = (sortFn, slice) => [...state.historicalData].sort(sortFn).slice(0, slice);
 
         switch (mode) {
             case 'record_days':
@@ -320,16 +318,16 @@ document.addEventListener('DOMContentLoaded', () => {
         div.appendChild(container);
         return div;
     };
-    
+
     const getComparisonData = (mode) => {
-        const salesDate = salesDateInput.valueAsDate || new Date();
+        const salesDate = ui.salesDateInput.valueAsDate || new Date();
         const utcDate = new Date(Date.UTC(salesDate.getFullYear(), salesDate.getMonth(), salesDate.getDate()));
 
         const createDataset = (dayData, index, options = {}) => ({
             label: options.label || new Date(dayData.date).toLocaleDateString('en-GB', { timeZone: 'UTC' }),
             data: calculateCumulative(dayData.sales),
             raw: dayData.sales,
-            borderColor: lineColors[index % lineColors.length],
+            borderColor: state.lineColors[index % state.lineColors.length],
             borderWidth: 2,
             pointRadius: 0,
             tension: 0.4,
@@ -338,33 +336,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const findAndFormat = (targetDate, label) => {
-            const day = historicalData.find(d => d.id === targetDate.toISOString().split('T')[0]);
+            const day = state.historicalData.find(d => d.id === targetDate.toISOString().split('T')[0]);
             if (day) return [createDataset(day, 0, { label })];
-            chartError.textContent = `No data for ${targetDate.toLocaleDateString('en-GB', { timeZone: 'UTC' })}`;
+            ui.chartError.textContent = `No data for ${targetDate.toLocaleDateString('en-GB', { timeZone: 'UTC' })}`;
             return null;
         };
 
         switch (mode) {
             case 'average': {
                 const dayOfWeek = document.getElementById('day-of-week').value;
-                const relevant = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
-                if (!relevant.length) { chartError.textContent = `No data for ${dayOfWeek}.`; return null; }
-                const avgSales = timeSlots.map((_, i) => relevant.reduce((sum, d) => sum + d.sales[i], 0) / relevant.length);
+                const relevant = state.historicalData.filter(d => d.dayOfWeek === dayOfWeek);
+                if (!relevant.length) { ui.chartError.textContent = `No data for ${dayOfWeek}.`; return null; }
+                const avgSales = state.timeSlots.map((_, i) => relevant.reduce((sum, d) => sum + d.sales[i], 0) / relevant.length);
                 return [createDataset({ sales: avgSales, date: new Date() }, 0, { label: `Average ${dayOfWeek}`, borderDash: [5, 5] })];
             }
             case 'top_weekday': {
                 const dayOfWeek = utcDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
-                const relevant = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
-                if (!relevant.length) { chartError.textContent = `No data for ${dayOfWeek}.`; return null; }
-                return relevant.sort((a, b) => b.totalSales - a.totalSales).slice(0, 5).map((d,i)=>createDataset(d,i));
+                const relevant = state.historicalData.filter(d => d.dayOfWeek === dayOfWeek);
+                if (!relevant.length) { ui.chartError.textContent = `No data for ${dayOfWeek}.`; return null; }
+                return relevant.sort((a, b) => b.totalSales - a.totalSales).slice(0, 5).map((d, i) => createDataset(d, i));
             }
             case 'specific':
             case 'record_days':
             case 'worst_days': {
                 const checked = Array.from(document.querySelectorAll('#additional-controls input:checked'));
-                if (!checked.length) { chartError.textContent = 'Please select at least one day.'; return null; }
+                if (!checked.length) { ui.chartError.textContent = 'Please select at least one day.'; return null; }
                 return checked.slice(0, 6).map((box, i) => {
-                    const dayData = historicalData.find(d => d.id === box.value);
+                    const dayData = state.historicalData.find(d => d.id === box.value);
                     return dayData ? createDataset(dayData, i) : null;
                 }).filter(Boolean);
             }
@@ -384,16 +382,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return null;
     };
-    
+
     // --- CHART RENDERING --- //
     const renderChart = (datasets) => {
-        if (salesChart) salesChart.destroy();
-        chartPlaceholder.style.display = 'none';
+        if (state.salesChart) state.salesChart.destroy();
+        ui.chartPlaceholder.style.display = 'none';
         const ctx = document.getElementById('salesChart').getContext('2d');
         let chartConfig;
 
-        if (currentChartType === 'heatmap') {
-             const heatmapData = historicalData.flatMap(day => {
+        if (state.currentChartType === 'heatmap') {
+            const heatmapData = state.historicalData.flatMap(day => {
                 const dayIndex = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(day.dayOfWeek);
                 return day.sales.map((value, timeIndex) => ({ x: timeIndex, y: dayIndex, v: value }));
             });
@@ -403,33 +401,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     datasets: [{
                         label: 'Sales Heatmap (£)',
                         data: heatmapData,
-                        backgroundColor: (c) => `rgba(0, 245, 212, ${Math.min(0.1 + ((c.dataset.data[c.dataIndex]?.v || 0) / 150), 1)})`,
-                        borderColor: 'rgba(0, 0, 0, 0.5)',
+                        backgroundColor: (c) => `rgba(0, 120, 212, ${Math.min(0.1 + ((c.dataset.data[c.dataIndex]?.v || 0) / 150), 1)})`,
+                        borderColor: 'rgba(255, 255, 255, 0.5)',
                         borderWidth: 1,
-                        width: ({chart}) => (chart.chartArea || {}).width / timeSlots.length - 1,
-                        height: ({chart}) => (chart.chartArea || {}).height / 7 - 1,
+                        width: ({ chart }) => (chart.chartArea || {}).width / state.timeSlots.length - 1,
+                        height: ({ chart }) => (chart.chartArea || {}).height / 7 - 1,
                     }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     scales: {
-                        x: { type: 'category', labels: timeSlots, ticks: { autoSkip: true, maxTicksLimit: 10 }, grid: { display: false } },
+                        x: { type: 'category', labels: state.timeSlots, ticks: { autoSkip: true, maxTicksLimit: 10 }, grid: { display: false } },
                         y: { type: 'category', labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], offset: true, grid: { display: false } }
                     },
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { title:()=>'', label: c => `£${c.raw.v.toFixed(2)}` } } }
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => '', label: c => `£${c.raw.v.toFixed(2)}` } } }
                 }
             };
         } else {
             let finalDatasets, yAxisTitle;
-            if (currentChartType === 'bar') {
+            if (state.currentChartType === 'bar') {
                 finalDatasets = datasets.map(ds => ({ ...ds, data: ds.raw, type: 'bar', backgroundColor: ds.borderColor + '80' }));
                 yAxisTitle = 'Sales per Interval (£)';
             } else {
-                finalDatasets = datasets.map(ds => ({ ...ds, type: 'line', backgroundColor: ds.borderColor + '1A' }));
+                finalDatasets = datasets.map(ds => ({ ...ds, type: 'line', backgroundColor: ds.backgroundColor || (ds.borderColor + '1A') }));
                 yAxisTitle = 'Cumulative Sales (£)';
             }
             chartConfig = {
-                type: 'line', data: { labels: timeSlots, datasets: finalDatasets },
+                type: 'line', data: { labels: state.timeSlots, datasets: finalDatasets },
                 options: {
                     responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
                     scales: { y: { title: { display: true, text: yAxisTitle } } },
@@ -437,58 +435,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
         }
-        salesChart = new Chart(ctx, chartConfig);
+        state.salesChart = new Chart(ctx, chartConfig);
     };
 
+    // --- KPI & INSIGHTS --- //
     const generateInsights = (todayData, comparisonData) => {
-        insightsContent.innerHTML = '';
+        ui.insightsContent.innerHTML = '';
         let insights = [];
-    
+
         if (todayData) {
             const peakHour = getPeakHour(todayData.raw);
             insights.push(`Today's sales peaked around <strong>${peakHour}</strong>.`);
-            
+
             if (comparisonData && comparisonData.length > 0) {
                 const todayTotal = todayData.data.at(-1);
                 const compTotal = comparisonData[0].data.at(-1);
-                if(compTotal > 0){
+                if (compTotal > 0) {
                     const percentChange = (todayTotal / compTotal - 1) * 100;
                     const verb = percentChange >= 0 ? 'up' : 'down';
                     insights.push(`Performance is <strong>${verb} ${Math.abs(percentChange).toFixed(1)}%</strong> vs '${comparisonData[0].label}'.`);
                 }
             }
-    
+
             const morningSales = todayData.raw.slice(0, 14).reduce((a, b) => a + b, 0);
             const afternoonSales = todayData.raw.slice(14).reduce((a, b) => a + b, 0);
-            if(morningSales + afternoonSales > 0){
+            if (morningSales + afternoonSales > 0) {
                 const split = (morningSales / (morningSales + afternoonSales) * 100).toFixed(0);
                 insights.push(`The morning session drove <strong>${split}%</strong> of today's revenue.`);
             }
         } else {
-             insights.push(`Load today's data to generate live insights.`);
+            insights.push(`Load today's data to generate live insights.`);
         }
-        
-        if (historicalData.length > 0) {
-            const historicalAvg = historicalData.reduce((sum, day) => sum + day.totalSales, 0) / historicalData.length;
+
+        if (state.historicalData.length > 0) {
+            const historicalAvg = state.historicalData.reduce((sum, day) => sum + day.totalSales, 0) / state.historicalData.length;
             insights.push(`The average daily total from your dataset is <strong>£${historicalAvg.toFixed(2)}</strong>.`);
         }
-    
+
         if (insights.length > 0) {
             insights.forEach(insight => {
                 const p = document.createElement('p');
                 p.className = 'insight-item';
                 p.innerHTML = `<i class="fas fa-check-circle"></i> ${insight}`;
-                insightsContent.appendChild(p);
+                ui.insightsContent.appendChild(p);
             });
         } else {
-            insightsContent.innerHTML = '<p class="no-data-text">Not enough data for insights.</p>';
+            ui.insightsContent.innerHTML = '<p class="no-data-text">Not enough data for insights.</p>';
         }
     };
-    
+
     const updateKpis = (todayData, comparisonData) => {
-        kpiContainer.innerHTML = ''; 
+        ui.kpiContainer.innerHTML = '';
         if (!todayData || !todayData.data.length) {
-            kpiContainer.innerHTML = '<p class="no-data-text">No data for KPIs.</p>';
+            ui.kpiContainer.innerHTML = '<p class="no-data-text">No data for KPIs.</p>';
             return;
         }
 
@@ -519,18 +518,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 const sign = kpi.change >= 0 ? '+' : '';
                 changeHtml = `<p class="kpi-change ${changeClass}">${sign}${kpi.change.toFixed(1)}%</p>`;
             }
-             card.innerHTML = `<h4>${kpi.title}</h4><p class="kpi-value">${kpi.value}</p><div class="kpi-footer">${changeHtml}<p class="kpi-label">${kpi.label}</p></div>`;
-            kpiContainer.appendChild(card);
+            card.innerHTML = `<h4>${kpi.title}</h4><p class="kpi-value">${kpi.value}</p><div class="kpi-footer">${changeHtml}<p class="kpi-label">${kpi.label}</p></div>`;
+            ui.kpiContainer.appendChild(card);
         });
     };
 
+    // --- UTILITY FUNCTIONS --- //
     const getPeakHour = (salesArray) => {
         if (!salesArray || salesArray.length === 0) return 'N/A';
         const maxSales = Math.max(...salesArray);
         if (maxSales === 0) return 'N/A';
-        return timeSlots[salesArray.indexOf(maxSales)];
+        return state.timeSlots[salesArray.indexOf(maxSales)];
     };
-    
+
     const parseComplexSalesData = (pastedString) => {
         if (!pastedString || typeof pastedString !== 'string') return null;
         const items = pastedString.split(/[\s,£\t\n\r]+/).filter(Boolean);
@@ -541,9 +541,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const timeRegex = /^\d{2}:\d{2}$/;
 
         for (let i = 0; i < items.length; i++) {
-            if (timeRegex.test(items[i]) && items[i+1] === "-") {
+            if (timeRegex.test(items[i]) && items[i + 1] === "-") {
                 if (salesFigures.length === 0) startTime = items[i];
-                const value = parseFloat(items[i+7]);
+                const value = parseFloat(items[i + 7]);
                 if (!isNaN(value)) salesFigures.push(value);
                 i += 7;
             }
@@ -552,10 +552,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const potentialSales = items.map(parseFloat).filter(v => !isNaN(v));
         return potentialSales.length > 0 ? { sales: potentialSales, startTime } : null;
     };
-    
+
     const alignSalesData = (parsedResult) => {
-        const alignedSales = Array(timeSlots.length).fill(0);
-        const startIndex = timeSlots.indexOf(parsedResult.startTime);
+        const alignedSales = Array(state.timeSlots.length).fill(0);
+        const startIndex = state.timeSlots.indexOf(parsedResult.startTime);
         if (startIndex !== -1) {
             parsedResult.sales.forEach((value, index) => {
                 if (startIndex + index < alignedSales.length) alignedSales[startIndex + index] = value;
@@ -566,6 +566,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const calculateCumulative = data => data.reduce((acc, val) => [...acc, (acc.at(-1) || 0) + val], []);
 
-    // --- KICK-OFF --- //
+    // --- START THE APP --- //
     init();
 });
