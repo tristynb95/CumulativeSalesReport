@@ -1,17 +1,19 @@
 :root {
-    --primary-color: #0078D4;
-    --secondary-color: #F5A623;
-    --background-color: #F4F4F4;
+    /* GAIL's Bakery Brand Palette */
+    --primary-color: #d43734; /* GAIL's Red */
+    --background-color: #F9F5F0; /* Soft Cream/Off-white */
     --surface-color: #FFFFFF;
-    --text-primary: #333333;
-    --text-secondary: #777777;
-    --border-color: #EAEAEA;
+    --text-primary: #333333; /* Dark Grey/Almost Black */
+    --text-secondary: #757575;
+    --border-color: #E0E0E0;
     --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     --border-radius: 8px;
     --transition-speed: 0.3s;
     --panel-width: 380px;
-    --font-sans: 'Space Grotesk', sans-serif;
-    --font-display: 'Orbitron', monospace;
+
+    /* GAIL's Typography */
+    --font-heading: 'Playfair Display', serif;
+    --font-body: 'Lato', sans-serif;
 }
 
 *, *::before, *::after {
@@ -21,7 +23,7 @@
 }
 
 body {
-    font-family: var(--font-sans);
+    font-family: var(--font-body);
     color: var(--text-primary);
     background-color: var(--background-color);
     font-size: 16px;
@@ -33,8 +35,6 @@ body {
 .app-container {
     display: flex;
     height: 100vh;
-    position: relative;
-    z-index: 1;
 }
 
 /* --- Control Panel --- */
@@ -42,24 +42,31 @@ body {
     width: var(--panel-width);
     background: var(--surface-color);
     border-right: 1px solid var(--border-color);
-    padding: 2rem;
+    padding: 2.5rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    transition: all var(--transition-speed) ease;
+    transition: width var(--transition-speed) ease, padding var(--transition-speed) ease;
     flex-shrink: 0;
     box-shadow: var(--shadow);
 }
 .control-panel.collapsed {
     width: 0;
-    padding: 2rem 0;
-    opacity: 0;
-    pointer-events: none;
+    padding: 2.5rem 0;
+    overflow: hidden;
+}
+
+/* Added spacing between sections */
+.step-section {
+    margin-bottom: 2.5rem; 
+}
+.step-section:last-child {
+    margin-bottom: 0;
 }
 
 .panel-toggle-btn {
     position: absolute;
-    top: 2rem;
+    top: 2.5rem;
     left: var(--panel-width);
     transform: translateX(-50%);
     width: 30px;
@@ -72,24 +79,21 @@ body {
     display: grid;
     place-items: center;
     z-index: 100;
-    box-shadow: 0 4px 10px rgba(0, 120, 212, 0.4);
+    box-shadow: 0 4px 10px rgba(212, 55, 52, 0.4);
     transition: all var(--transition-speed) ease;
 }
 .control-panel.collapsed ~ .panel-toggle-btn {
     left: 15px;
 }
-
 .panel-toggle-btn i {
     transition: transform var(--transition-speed) ease;
 }
-.control-panel.collapsed ~ .panel-toggle-btn i {
-    transform: rotate(180deg);
-}
 
 .app-header h1 {
-    font-family: var(--font-display);
-    font-size: 2rem;
-    color: var(--primary-color);
+    font-family: var(--font-heading);
+    font-size: 2.5rem;
+    color: var(--text-primary);
+    letter-spacing: 1px;
 }
 .app-header p {
     color: var(--text-secondary);
@@ -113,10 +117,11 @@ body {
     place-items: center;
     font-weight: bold;
     flex-shrink: 0;
+    font-family: var(--font-body);
 }
 .section-header h2 {
-    font-family: var(--font-display);
-    font-size: 1.25rem;
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
     color: var(--text-primary);
 }
 
@@ -130,7 +135,7 @@ body {
 }
 .drop-zone:hover, .drop-zone.dragover {
     border-color: var(--primary-color);
-    background: #F0F8FF;
+    background: #FFF5F5;
 }
 .drop-zone i {
     font-size: 2.5rem;
@@ -139,7 +144,18 @@ body {
 }
 
 /* --- Form & Buttons --- */
-.form-input, .form-textarea, .comparison-modes button {
+.control-group {
+    margin-bottom: 1.5rem;
+}
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.form-input, .form-textarea, .button-secondary {
     background-color: #FFFFFF;
     border: 1px solid var(--border-color);
     color: var(--text-primary);
@@ -147,23 +163,36 @@ body {
     padding: 0.75rem;
     transition: all var(--transition-speed);
     width: 100%;
+    font-family: var(--font-body);
 }
 .form-input:focus, .form-textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.2);
+    box-shadow: 0 0 0 3px rgba(212, 55, 52, 0.2);
+}
+.button-secondary {
+    background-color: #F5F5F5;
+    cursor: pointer;
+    font-weight: bold;
+}
+.button-secondary:hover {
+    background-color: #EEEEEE;
+    border-color: #BDBDBD;
 }
 
+/* Re-arranged comparison modes into a neat grid */
 .comparison-modes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
 }
 .comparison-modes button {
     cursor: pointer;
-    width: auto;
-    flex-grow: 1;
     background: #F9F9F9;
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    border-radius: 6px;
+    transition: all var(--transition-speed);
 }
 .comparison-modes button.selected {
     background-color: var(--primary-color);
@@ -182,12 +211,12 @@ body {
     border-radius: 6px;
     background: var(--primary-color);
     color: white;
-    box-shadow: 0 4px 10px rgba(0, 120, 212, 0.3);
+    box-shadow: 0 4px 10px rgba(212, 55, 52, 0.3);
     transition: all var(--transition-speed);
 }
 .button-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0, 120, 212, 0.4);
+    box-shadow: 0 6px 15px rgba(212, 55, 52, 0.4);
 }
 
 /* --- Dashboard Area --- */
@@ -195,13 +224,13 @@ body {
     flex-grow: 1;
     padding: 2.5rem;
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 1fr 340px; /* Made insights panel slightly wider */
     grid-template-rows: auto auto 1fr;
     grid-template-areas:
         "header   insights"
         "kpis     insights"
         "chart    insights";
-    gap: 1.5rem;
+    gap: 2rem; /* Increased gap for more breathing room */
     overflow-y: auto;
 }
 .dashboard-header {
@@ -214,10 +243,10 @@ body {
 .kpi-grid {
     grid-area: kpis;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem;
 }
-.kpi-card {
+.kpi-card, .chart-container, .insights-container {
     background: var(--surface-color);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
@@ -225,25 +254,15 @@ body {
     box-shadow: var(--shadow);
 }
 .kpi-value {
-    font-size: 2rem;
+    font-size: 2.25rem;
     font-weight: bold;
     color: var(--primary-color);
+    font-family: var(--font-body);
 }
 
-/* --- Chart & Insights --- */
-.chart-container, .insights-container {
-    grid-area: chart;
-    background: var(--surface-color);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow);
-    display: flex;
-    flex-direction: column;
-    padding: 1.5rem;
-}
-.insights-container {
-    grid-area: insights;
-}
+.chart-container { grid-area: chart; }
+.insights-container { grid-area: insights; }
+
 #chart-wrapper {
     position: relative;
     flex-grow: 1;
@@ -275,15 +294,10 @@ body {
     background: var(--primary-color);
     color: white;
 }
-.insights-header i {
-    color: var(--secondary-color);
-}
+.insights-header i { color: #F5A623; } /* Amber for the lightbulb icon */
 
 /* Utility Classes */
-.disabled {
-    opacity: 0.5;
-    pointer-events: none;
-}
+.disabled { opacity: 0.5; pointer-events: none; }
 .hidden { display: none !important; }
 
 /* Scrollbar */
