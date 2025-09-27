@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUser = null; // To hold the logged-in user object
     let peakHourData = null; // To store peak hour info
     let isPeakHighlightVisible = false; // To toggle highlight
+    let firestoreListener = null; // To hold the realtime listener unsubscribe function
 
     // Initialize Firebase if it hasn't been already
     if (!firebase.apps.length) {
@@ -71,6 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
             userInfo.classList.remove('hidden');
             init();
         } else {
+             if (firestoreListener) {
+                firestoreListener(); // Unsubscribe from the listener on logout
+            }
             window.location.href = '/login.html';
         }
     });
@@ -81,32 +85,38 @@ document.addEventListener('DOMContentLoaded', () => {
         populateComparisonModes();
         setupEventListeners();
         setupChartDefaults();
-        loadFromFirestore();
+        setupRealtimeListener(); // Changed from loadFromFirestore
     };
 
-    const loadFromFirestore = () => {
+    const setupRealtimeListener = () => {
         if (!currentUser) return;
-        updateFileStatus("Loading historical data from database...", false);
-        
-        db.collection("users").doc(currentUser.uid).collection("dailySales").orderBy("date", "desc").get()
-          .then((querySnapshot) => {
-              historicalData = [];
-              querySnapshot.forEach((doc) => historicalData.push(doc.data()));
-              if (historicalData.length > 0) {
-                  const savedFileName = localStorage.getItem('savedFileName');
-                  updateUIWithLoadedData(savedFileName || 'Database');
-                  updateFileStatus(`${historicalData.length} records loaded from database.`);
-                  handleUpdateChart(); 
-              } else {
-                  updateFileStatus("No historical data found. Upload a file to start.", false);
-              }
-          })
-          .catch((error) => {
-              console.error("Error loading data from Firestore:", error);
-              updateFileStatus("Error loading from database.", true);
-          });
+
+        if (firestoreListener) {
+            firestoreListener();
+        }
+
+        updateFileStatus("Connecting to live data...", false);
+
+        const salesCollection = db.collection("users").doc(currentUser.uid).collection("dailySales").orderBy("date", "desc");
+
+        firestoreListener = salesCollection.onSnapshot((querySnapshot) => {
+            historicalData = [];
+            querySnapshot.forEach((doc) => historicalData.push(doc.data()));
+
+            if (historicalData.length > 0) {
+                const savedFileName = localStorage.getItem('savedFileName');
+                updateUIWithLoadedData(savedFileName || 'Database');
+                updateFileStatus(`${historicalData.length} records loaded. Real-time updates are active.`, false);
+                handleUpdateChart();
+            } else {
+                updateFileStatus("No historical data found. Upload a file to start.", false);
+            }
+        }, (error) => {
+            console.error("Error with real-time listener:", error);
+            updateFileStatus("Error connecting to the database.", true);
+        });
     };
-    
+
     const handleFile = async (file) => {
         if (!file || !currentUser) return;
         updateFileStatus(`Uploading and processing ${file.name}...`, false);
@@ -117,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = (e) => {
             const fileContents = e.target.result.split(',')[1];
             // This is your actual Cloud Function URL
-            const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData'; 
+            const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData';
 
             fetch(functionUrl, {
                 method: 'POST',
@@ -134,14 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return response.json();
             })
             .then(data => {
-                // The Cloud Function now returns the processed data, which we use directly
-                historicalData = data.processedData;
                 updateFileStatus(data.message, false);
                 localStorage.setItem('savedFileName', file.name);
-                
-                // Now with the guaranteed fresh data, update the UI
-                updateUIWithLoadedData(file.name);
-                handleUpdateChart();
+                // The onSnapshot listener will handle the UI update automatically.
             })
             .catch(error => {
                 console.error('Upload Error:', error);
@@ -161,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const saveTodaysSales = () => localStorage.setItem('todaysSalesData', todaysSalesInput.value);
-    
+
     const handlePastedDataUpdate = () => {
         saveTodaysSales(); // Keep saving to localStorage
 
@@ -171,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (date) {
             salesDateInput.valueAsDate = date;
             const dayOfWeek = date.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
-            
+
             const wrapper = document.querySelector('.custom-select-wrapper');
             if (wrapper) {
                 const trigger = wrapper.querySelector('.custom-select-trigger span');
@@ -186,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     };
-    
+
     const updateUIWithLoadedData = (fileName) => {
         fileNameEl.textContent = fileName;
         fileInfoContainer.classList.remove('hidden');
@@ -194,14 +199,14 @@ document.addEventListener('DOMContentLoaded', () => {
         analysisPanel.classList.remove('disabled');
         generatePanel.classList.remove('disabled');
         updateFileStatus(`${historicalData.length} records loaded.`);
-        
+
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         renderAdditionalControls(selectedMode);
-        
+
         const savedTodaysSales = localStorage.getItem('todaysSalesData');
         if (savedTodaysSales) {
             todaysSalesInput.value = savedTodaysSales;
-            handlePastedDataUpdate(); 
+            handlePastedDataUpdate();
         }
     };
 
@@ -211,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isPeakHighlightVisible && peakHourData) {
                 const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
                 const start = x.getPixelForValue(peakHourData.startIndex);
-                const end = x.getPixelForValue(peakHourData.endIndex + 1); 
+                const end = x.getPixelForValue(peakHourData.endIndex + 1);
 
                 ctx.save();
                 ctx.fillStyle = 'rgba(138, 43, 226, 0.2)';
@@ -227,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
         Chart.register(peakHighlightPlugin);
     };
-    
+
     const populateComparisonModes = () => {
         comparisonModesContainer.innerHTML = '';
         Object.entries(comparisonModes).forEach(([value, label]) => {
@@ -243,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
         insightsPanel.classList.toggle('is-visible');
         insightsOverlay.classList.toggle('is-visible');
     };
-    
+
     const setupEventListeners = () => {
         uploadBtn.addEventListener('click', () => excelFileInput.click());
         excelFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
@@ -254,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
         panelToggleBtn.addEventListener('click', toggleControlPanel);
         todaysSalesInput.addEventListener('input', handlePastedDataUpdate);
-        
+
         insightsToggleBtn.addEventListener('click', toggleInsightsPanel);
         insightsCloseBtn.addEventListener('click', toggleInsightsPanel);
         insightsOverlay.addEventListener('click', toggleInsightsPanel);
@@ -267,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         additionalControlsContainer.addEventListener('click', handleCustomSelect);
-        
+
         window.addEventListener('click', (e) => {
             const select = document.querySelector('.custom-select');
             if (select && !select.contains(e.target)) {
@@ -292,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         salesChart.update();
     };
-    
+
     const setupDragAndDrop = () => {
         ['dragover', 'drop'].forEach(eventName => dropZone.addEventListener(eventName, e => e.preventDefault()));
         dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
@@ -357,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (option) {
             const select = option.closest('.custom-select');
             const nativeSelect = select.previousElementSibling;
-            
+
             nativeSelect.value = option.dataset.value;
             select.querySelector('.custom-select-trigger span').textContent = option.textContent;
             select.querySelector('.custom-option.selected').classList.remove('selected');
@@ -365,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
             select.classList.remove('open');
         }
     };
-    
+
     // --- DATA PARSING & PROCESSING --- //
     const parseTimeZoneReport = (pastedString) => {
         if (!pastedString || typeof pastedString !== "string") return { sales: null, date: null };
@@ -382,9 +387,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const day = parseInt(dateMatch[1], 10);
                 const month = parseInt(dateMatch[2], 10) - 1;
                 const year = parseInt(dateMatch[3], 10);
-                
+
                 const tempDate = new Date(Date.UTC(year, month, day));
-                
+
                 if (tempDate.getUTCFullYear() === year && tempDate.getUTCMonth() === month && tempDate.getUTCDate() === day) {
                     parsedDate = tempDate;
                 }
@@ -401,17 +406,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (match) {
                 const startTime = match[1];
                 const netSales = parseFloat(match[2].replace(/,/g, ''));
-                
+
                 const slotIndex = timeSlots.indexOf(startTime);
                 if (slotIndex !== -1) aggregatedSales[slotIndex] = netSales;
             }
         }
-        
+
         const totalParsedSales = aggregatedSales.reduce((a, b) => a + b, 0);
-        
-        return { 
-            sales: totalParsedSales > 0 ? aggregatedSales : null, 
-            date: parsedDate 
+
+        return {
+            sales: totalParsedSales > 0 ? aggregatedSales : null,
+            date: parsedDate
         };
     };
 
@@ -446,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 backgroundColor: 'rgba(255, 105, 180, 0.1)'
             };
         }
-        
+
         let datasets = todayDataset ? [todayDataset] : [];
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         let comparisonData = null;
@@ -456,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (datasets.length === 0 && currentChartType !== 'heatmap') {
-            chartError.textContent = "No data available to generate chart. Please upload a file."; 
+            chartError.textContent = "No data available to generate chart. Please upload a file.";
             return;
         }
 
@@ -464,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateKpis(todayDataset, comparisonData);
         generateInsights(todayDataset, comparisonData);
     };
-    
+
     const renderAdditionalControls = (mode) => {
         additionalControlsContainer.innerHTML = '';
         if (mode === 'average') {
@@ -514,12 +519,12 @@ document.addEventListener('DOMContentLoaded', () => {
             additionalControlsContainer.appendChild(div);
         }
     };
-    
+
     const createCheckboxes = (mode) => {
         const div = document.createElement('div');
         let data, label;
         const sortAndSlice = (sortFn, slice) => [...historicalData].sort(sortFn).slice(0, slice);
-        
+
         switch (mode) {
             case 'worst_days':
                 data = sortAndSlice((a, b) => a.totalSales - b.totalSales, 10);
@@ -544,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
         div.appendChild(container);
         return div;
     };
-    
+
     const getComparisonData = (mode) => {
         const salesDate = salesDateInput.valueAsDate || new Date();
         const utcDate = new Date(Date.UTC(salesDate.getFullYear(), salesDate.getMonth(), salesDate.getDate()));
@@ -566,13 +571,13 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'average': {
                 const dayOfWeek = document.getElementById('day-of-week').value;
                 const period = document.getElementById('period').value;
-                
+
                 const now = new Date();
-                
+
                 const filteredData = historicalData.filter(d => {
                     const date = new Date(d.date);
                     if (period === 'all') return true;
-                    
+
                     if(period === 'this_month') return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
                     if(period === 'last_month') return date.getMonth() === now.getMonth() - 1 && date.getFullYear() === now.getFullYear();
                     if(period === 'last_3_months') return date >= new Date(now.getFullYear(), now.getMonth() - 3, 1);
@@ -583,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     return false;
                 });
-                
+
                 const relevant = filteredData.filter(d => d.dayOfWeek === dayOfWeek);
                 if (!relevant.length) { chartError.textContent = `No data for ${dayOfWeek} in the selected period.`; return null; }
                 const avgSales = timeSlots.map((_, i) => relevant.reduce((sum, d) => sum + d.sales[i], 0) / relevant.length);
@@ -595,12 +600,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     .filter(d => d.dayOfWeek === dayOfWeek)
                     .sort((a, b) => b.totalSales - a.totalSales)
                     .slice(0, 5);
-                
+
                 if (!top5Days.length) {
                     chartError.textContent = `Not enough historical data for ${dayOfWeek}s.`;
                     return null;
                 }
-                
+
                 return top5Days.map((day, i) => createDataset(day, i));
             }
             case 'specific': case 'worst_days': {
@@ -621,7 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return null;
     };
-    
+
     const renderChart = (datasets) => {
         if (salesChart) salesChart.destroy();
         chartPlaceholder.style.display = 'none';
@@ -716,9 +721,9 @@ document.addEventListener('DOMContentLoaded', () => {
             insightsContent.innerHTML = '<p class="no-data-text">Not enough data for insights.</p>';
         }
     };
-    
+
     const updateKpis = (todayData, comparisonData) => {
-        kpiContainer.innerHTML = ''; 
+        kpiContainer.innerHTML = '';
         const selectedDate = salesDateInput.valueAsDate || new Date();
         dashboardTitleText.textContent = `Live Sales Performance for ${selectedDate.toLocaleDateString('en-GB')}`;
 
@@ -794,10 +799,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const getPeak2Hours = (salesArray) => {
         if (!salesArray || salesArray.length < 4) return { label: 'N/A' };
-    
+
         let maxSum = 0;
         let peakStartIndex = -1;
-    
+
         for (let i = 0; i <= salesArray.length - 4; i++) {
             const currentSum = salesArray.slice(i, i + 4).reduce((a, b) => a + b, 0);
             if (currentSum > maxSum) {
@@ -805,20 +810,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 peakStartIndex = i;
             }
         }
-    
+
         if (peakStartIndex === -1 || maxSum === 0) return { label: 'N/A' };
-    
+
         const startTime = timeSlots[peakStartIndex];
         const endTimeSlotIndex = peakStartIndex + 3;
         const endTime = timeSlots[endTimeSlotIndex];
-    
+
         const [endHour, endMinute] = endTime.split(':').map(Number);
         const endDate = new Date();
         endDate.setHours(endHour, endMinute + 30, 0, 0);
-    
+
         const finalEndHour = String(endDate.getHours()).padStart(2, '0');
         const finalEndMinute = String(endDate.getMinutes()).padStart(2, '0');
-    
+
         return {
             label: `${startTime} - ${finalEndHour}:${finalEndMinute}`,
             startIndex: peakStartIndex,
