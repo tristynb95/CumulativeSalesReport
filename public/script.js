@@ -8,8 +8,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let isPeakHighlightVisible = false; // To toggle highlight
 
     // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
+    // Initialize Firebase if it hasn't been already
+if (!firebase.apps.length) {
+    firebase.initializeApp();
+}
+const auth = firebase.auth();
     const db = firebase.firestore();
 
     const timeSlots = Array.from({ length: 28 }, (_, i) => {

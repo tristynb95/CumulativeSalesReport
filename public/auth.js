@@ -3,8 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // REMOVE the const firebaseConfig = { ... }; block from here.
 
     // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
+    // Initialize Firebase if it hasn't been already
+if (!firebase.apps.length) {
+    firebase.initializeApp();
+}
+const auth = firebase.auth();
 
     const loginForm = document.getElementById('login-form');
     const emailInput = document.getElementById('email');
