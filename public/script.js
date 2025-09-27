@@ -571,9 +571,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const calculateProjectedSales = (rawSales) => {
         const lastSaleIndex = findLastSaleIndex(rawSales);
         if (lastSaleIndex === -1) return 0;
+
         const intervalsPassed = lastSaleIndex + 1;
         const totalSoFar = rawSales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
-        return (totalSoFar / intervalsPassed) * timeSlots.length;
+        const currentRunRate = (totalSoFar / intervalsPassed) * timeSlots.length;
+
+        const salesDate = salesDateInput.valueAsDate || new Date();
+        const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+
+        const relevantHistoricalDays = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
+
+        if (relevantHistoricalDays.length < 3) { // Not enough data for a good projection
+            return currentRunRate;
+        }
+
+        // Calculate the average historical sales pattern for this day of the week
+        const avgHistoricalSales = timeSlots.map((_, i) =>
+            relevantHistoricalDays.reduce((sum, d) => sum + d.sales[i], 0) / relevantHistoricalDays.length
+        );
+
+        // Calculate the historical run-rate up to the current time
+        const historicalTotalSoFar = avgHistoricalSales.slice(0, intervalsPassed).reduce((a,b) => a + b, 0);
+        const historicalRunRateForInterval = (totalSoFar / historicalTotalSoFar);
+
+        // If today's performance is significantly different from the historical average, it might be an anomaly.
+        // We can use a credibility factor to blend the two run rates.
+        const credibility = Math.min(1, intervalsPassed / (timeSlots.length / 2)); // Give more weight to historical data early in the day
+
+        const blendedMultiplier = (historicalRunRateForInterval * credibility) + (1-credibility);
+
+        const historicalTotal = avgHistoricalSales.reduce((a,b) => a+b, 0);
+
+        return historicalTotal * blendedMultiplier;
     };
 
     const getPeakHour = (salesArray) => {
