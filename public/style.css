@@ -424,9 +424,10 @@ body {
     .main-chart-container {
         order: 2;
         min-height: 450px;
+        margin-bottom: 5rem;
     }
     .dashboard-area {
-        padding: 1.5rem 1.5rem 5rem;
+        padding: 1.5rem;
     }
     .kpi-value {
         font-size: 1.8rem;
