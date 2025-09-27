@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let salesChart = null;
     let historicalData = [];
     let currentChartType = 'line';
+    let currentUser = null; // To hold the logged-in user object
 
     // --- FIREBASE CONFIGURATION ---
     // PASTE YOUR FIREBASE CONFIG OBJECT HERE
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
     const db = firebase.firestore();
 
     const timeSlots = Array.from({ length: 28 }, (_, i) => {
@@ -61,6 +63,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const panelToggleBtn = document.getElementById('panel-toggle-btn');
     const controlPanel = document.getElementById('control-panel');
     const dashboardTitleText = document.getElementById('dashboard-title-text');
+    const userInfo = document.getElementById('user-info');
+    const userEmailEl = document.getElementById('user-email');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    // --- AUTHENTICATION LISTENER --- //
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            currentUser = user;
+            userEmailEl.textContent = user.email;
+            userInfo.classList.remove('hidden');
+            init();
+        } else {
+            // If no user, redirect to login page
+            window.location.href = '/login.html';
+        }
+    });
 
     // --- INITIALIZATION & DATA HANDLING --- //
     const init = () => {
@@ -72,8 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const loadFromFirestore = () => {
+        if (!currentUser) return;
         updateFileStatus("Loading historical data from database...", false);
-        db.collection("dailySales").orderBy("date", "desc").get()
+        
+        // Fetch data from the user-specific collection
+        db.collection("users").doc(currentUser.uid).collection("dailySales").orderBy("date", "desc").get()
           .then((querySnapshot) => {
               historicalData = [];
               querySnapshot.forEach((doc) => historicalData.push(doc.data()));
@@ -82,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   updateUIWithLoadedData(savedFileName || 'Database');
                   updateFileStatus(`${historicalData.length} records loaded from database.`);
               } else {
-                  updateFileStatus("No historical data found in the database.", true);
+                  updateFileStatus("No historical data found. Upload a file to start.", false);
               }
           })
           .catch((error) => {
@@ -91,17 +112,24 @@ document.addEventListener('DOMContentLoaded', () => {
           });
     };
     
-    const handleFile = (file) => {
-        if (!file) return;
+    const handleFile = async (file) => {
+        if (!file || !currentUser) return;
         updateFileStatus(`Uploading and processing ${file.name}...`, false);
+        
+        // Get the user's ID token for authentication
+        const token = await currentUser.getIdToken();
+
         const reader = new FileReader();
         reader.onload = (e) => {
             const fileContents = e.target.result.split(',')[1];
-            // PASTE YOUR CLOUD FUNCTION URL HERE
             const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData';
+            
             fetch(functionUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ fileContents, fileName: file.name }),
             })
             .then(response => {
@@ -123,8 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- UI & EVENT LISTENERS --- //
-    
-    // ADDED THIS FUNCTION
     const updateFileStatus = (message, isError = false) => {
         fileStatus.textContent = message;
         fileStatus.style.color = isError ? 'var(--error-color)' : 'var(--success-color)';
@@ -171,6 +197,11 @@ document.addEventListener('DOMContentLoaded', () => {
         chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
         panelToggleBtn.addEventListener('click', toggleControlPanel);
         todaysSalesInput.addEventListener('input', saveTodaysSales);
+        
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut();
+        });
+
         setupDragAndDrop();
         document.addEventListener('fullscreenchange', () => {
             if (!document.fullscreenElement) setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
@@ -561,5 +592,4 @@ document.addEventListener('DOMContentLoaded', () => {
         return maxSales === 0 ? 'N/A' : timeSlots[salesArray.indexOf(maxSales)];
     };
 
-    init();
 });

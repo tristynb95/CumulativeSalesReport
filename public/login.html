@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - GAIL's Bakery Sales Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@700;990&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app-background"></div>
+    <div class="auth-container">
+        <div class="auth-box">
+            <header class="app-header">
+                <h1>INSIGHTS</h1>
+                <p>Next-Generation Sales Analysis</p>
+            </header>
+            <form id="login-form">
+                <div class="control-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" class="form-input" required>
+                </div>
+                <div class="control-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="form-input" required>
+                </div>
+                <p id="auth-error" class="error-text"></p>
+                <div class="auth-actions">
+                    <button type="submit" id="login-btn" class="button-primary">Login</button>
+                    <button type="button" id="signup-btn" class="button-secondary">Sign Up</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-auth-compat.js"></script>
+    <script src="auth.js"></script>
+</body>
+</html>
