@@ -1,5 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize Firebase - firebaseConfig is now loaded from firebase-config.js
+    // The firebaseConfig object is now loaded from firebase-config.js
+    // REMOVE the const firebaseConfig = { ... }; block from here.
+
+    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
 
