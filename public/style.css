@@ -222,19 +222,49 @@ body {
 .button-secondary { text-align: center; cursor: pointer; }
 .button-secondary:hover { background-color: rgba(0,0,0,0.4); }
 
+/* =============================================================================== */
+/* START: Redesigned Dashboard Area Styles */
+/* =============================================================================== */
+
 .dashboard-area {
     flex-grow: 1;
     padding: 2.5rem;
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-rows: max-content max-content 1fr;
-    grid-template-areas: "header" "kpis" "chart";
+    display: flex; /* Changed from grid to flex */
+    flex-direction: column;
     gap: 2rem;
     overflow-y: auto;
 }
 
-.dashboard-header { grid-area: header; display: flex; justify-content: space-between; align-items: center; }
-.kpi-grid { grid-area: kpis; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; }
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.dashboard-title h2 {
+    font-family: var(--font-heading);
+    font-size: 2rem;
+    font-weight: 900;
+}
+
+.dashboard-title p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.kpi-container {
+    display: grid;
+    grid-template-columns: 2fr repeat(3, 1fr); /* Hero KPI is twice as wide */
+    gap: 1.5rem;
+    flex-shrink: 0;
+}
 
 .kpi-card, .chart-container, .insights-container {
     background: var(--surface-bg);
@@ -244,6 +274,12 @@ body {
     box-shadow: var(--shadow-lg);
     transition: all var(--transition-speed) ease;
 }
+
+.kpi-card.hero {
+    background: linear-gradient(45deg, rgba(138, 43, 226, 0.3), rgba(0, 191, 255, 0.3));
+    border-color: var(--primary-accent);
+}
+
 .kpi-card:hover { transform: translateY(-5px); border-color: var(--secondary-accent); }
 .kpi-card h4 { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 500; }
 .kpi-value { font-size: 2.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1rem; }
@@ -253,13 +289,21 @@ body {
 .kpi-change.negative { color: var(--error-color); }
 .kpi-label { color: var(--text-secondary); text-align: right; }
 
+
+.chart-and-insights-container {
+    display: grid;
+    grid-template-columns: 2.5fr 1fr; /* Chart is 2.5x wider than insights */
+    gap: 1.5rem;
+    flex-grow: 1;
+    min-height: 0; /* Critical for child elements to grow correctly */
+}
+
 .chart-container {
-    grid-area: chart;
     display: flex;
     flex-direction: column;
     min-height: 0;
 }
-.chart-wrapper { position: relative; flex-grow: 1; margin-top: 1rem; }
+.chart-wrapper { position: relative; flex-grow: 1; }
 .placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; color: var(--text-secondary); }
 .placeholder-icon { font-size: 4rem; color: var(--primary-accent); opacity: 0.5; margin-bottom: 1rem; }
 
@@ -269,10 +313,13 @@ body {
 .icon-button { background: none; border: none; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; font-size: 1.2rem; }
 .icon-button:hover { color: var(--text-primary); }
 
-.insights-container { display: none; }
-.insights-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; }
+.insights-container {
+    display: flex;
+    flex-direction: column;
+}
+.insights-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; flex-shrink: 0; }
 .insights-header i { color: var(--secondary-accent); }
-.insights-body { display: flex; flex-direction: column; gap: 1rem; }
+.insights-body { display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; }
 .insight-item { display: flex; align-items: flex-start; gap: 0.75rem; font-size: 0.95rem; line-height: 1.5; }
 .insight-item i { color: var(--success-color); margin-top: 4px; }
 .no-data-text { color: var(--text-secondary); font-style: italic; }
@@ -306,36 +353,6 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--primary-accent); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: #9D4BFF; }
 
-/* --- MODIFICATION START --- */
-@media (min-width: 1200px) {
-    .dashboard-area {
-        grid-template-columns: minmax(0, 1fr) 340px;
-        grid-template-rows: max-content 1fr;
-        grid-template-areas:
-            "header header"
-            "main-content insights";
-    }
-
-    /* Create a new wrapper to hold the left-column content */
-    .dashboard-main-content {
-        grid-area: main-content;
-        display: grid;
-        grid-template-rows: max-content 1fr; /* kpis take their own height, chart takes the rest */
-        gap: 2rem;
-        min-height: 0; /* Important for grid children */
-    }
-
-    .kpi-grid {
-        grid-row: 1; /* Position kpis in the first row of the main content area */
-    }
-    .chart-container {
-        grid-row: 2; /* Position chart in the second row */
-    }
-
-    .insights-container {
-        grid-area: insights;
-        display: block;
-    }
-}
-/* --- MODIFICATION END --- */
-
+/* =============================================================================== */
+/* END: Redesigned Dashboard Area Styles */
+/* =============================================================================== */

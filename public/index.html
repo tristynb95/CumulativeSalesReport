@@ -6,7 +6,7 @@
     <title>GAIL's Bakery - Advanced Sales Report</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@700;990&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -79,40 +79,52 @@
         <button id="panel-toggle-btn" class="panel-toggle-btn">
             <i class="fas fa-chevron-left"></i>
         </button>
-
+        
         <main class="dashboard-area" id="dashboard-area">
-            <div class="dashboard-header">
-                <div class="chart-type-switcher">
-                    <button class="chart-type-btn active" data-chart-type="line" title="Line Chart"><i class="fas fa-chart-line"></i></button>
-                    <button class="chart-type-btn" data-chart-type="bar" title="Bar Chart"><i class="fas fa-chart-bar"></i></button>
-                    <button class="chart-type-btn" data-chart-type="heatmap" title="Heatmap"><i class="fas fa-th"></i></button>
+            
+            <header class="dashboard-header">
+                <div class="dashboard-title">
+                    <h2 id="dashboard-title-text">Sales Dashboard</h2>
+                    <p>Real-time performance overview</p>
                 </div>
-                 <div class="header-actions">
-                     <button id="fullscreen-btn" class="icon-button" title="Fullscreen">
+                <div class="header-controls">
+                    <div class="chart-type-switcher">
+                        <button class="chart-type-btn active" data-chart-type="line" title="Line Chart"><i class="fas fa-chart-line"></i></button>
+                        <button class="chart-type-btn" data-chart-type="bar" title="Bar Chart"><i class="fas fa-chart-bar"></i></button>
+                        <button class="chart-type-btn" data-chart-type="heatmap" title="Heatmap"><i class="fas fa-th"></i></button>
+                    </div>
+                    <button id="fullscreen-btn" class="icon-button" title="Fullscreen">
                         <i class="fas fa-expand"></i>
                     </button>
-                 </div>
-            </div>
-            <div id="kpi-container" class="kpi-grid"></div>
-            <div id="chart-panel" class="chart-container">
-                 <div id="chart-wrapper">
-                    <canvas id="salesChart"></canvas>
-                    <div id="chart-placeholder" class="placeholder">
-                        <i class="fas fa-chart-pie placeholder-icon"></i>
-                        <p>Awaiting data to generate insights</p>
+                </div>
+            </header>
+
+            <section id="kpi-container" class="kpi-container">
+                </section>
+            
+            <section class="chart-and-insights-container">
+                <div id="chart-panel" class="chart-container">
+                     <div id="chart-wrapper">
+                        <canvas id="salesChart"></canvas>
+                        <div id="chart-placeholder" class="placeholder">
+                            <i class="fas fa-chart-pie placeholder-icon"></i>
+                            <p>Awaiting data to generate insights</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-             <div id="insights-panel" class="insights-container">
-                <div class="insights-header">
-                    <h3><i class="fas fa-lightbulb"></i> Automated Insights</h3>
+    
+                 <div id="insights-panel" class="insights-container">
+                    <div class="insights-header">
+                        <h3><i class="fas fa-lightbulb"></i> Automated Insights</h3>
+                    </div>
+                    <div id="insights-content" class="insights-body">
+                        <p class="no-data-text">Generate a chart to see automated insights here.</p>
+                    </div>
                 </div>
-                <div id="insights-content" class="insights-body">
-                    <p class="no-data-text">Generate a chart to see automated insights here.</p>
-                </div>
-            </div>
+            </section>
+
         </main>
-    </div>
+        </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@^1.1.1"></script>

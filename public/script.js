@@ -43,6 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const insightsContent = document.getElementById('insights-content');
     const panelToggleBtn = document.getElementById('panel-toggle-btn');
     const controlPanel = document.getElementById('control-panel');
+    const dashboardTitleText = document.getElementById('dashboard-title-text');
+
 
     // --- INITIALIZATION --- //
     const init = () => {
@@ -129,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteFileBtn.addEventListener('click', handleDeleteFile);
         updateChartBtn.addEventListener('click', handleUpdateChart);
         comparisonModesContainer.addEventListener('click', handleModeSelection);
-        fullscreenBtn.addEventListener('click', () => chartPanel.requestFullscreen());
+        fullscreenBtn.addEventListener('click', () => document.querySelector('.chart-and-insights-container').requestFullscreen());
         chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
         panelToggleBtn.addEventListener('click', toggleControlPanel);
         todaysSalesInput.addEventListener('input', saveTodaysSales);
@@ -176,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         kpiContainer.innerHTML = '';
         insightsContent.innerHTML = '<p class="no-data-text">Generate a chart to see automated insights here.</p>';
+        dashboardTitleText.textContent = 'Sales Dashboard';
         clearLocalStorage();
     };
 
@@ -225,12 +228,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             const alignedSales = alignSalesData(parsedResult);
-            // MODIFICATION: Find where today's data ends
             const lastSaleIndex = findLastSaleIndex(alignedSales);
 
             todayDataset = {
                 label: `Today's Sales`,
-                // MODIFICATION: Calculate cumulative data only up to the last sale
                 data: calculateCumulative(alignedSales, lastSaleIndex),
                 raw: alignedSales,
                 borderColor: '#FF69B4',
@@ -246,7 +247,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         let comparisonData = null;
         if (selectedMode && historicalData.length > 0) {
-            // MODIFICATION: Pass the full comparison data to be calculated fully
             comparisonData = getComparisonData(selectedMode);
             if (comparisonData) datasets.push(...comparisonData);
         }
@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const createDataset = (dayData, index, options = {}) => ({
             label: options.label || new Date(dayData.date).toLocaleDateString('en-GB', { timeZone: 'UTC' }),
-            data: calculateCumulative(dayData.sales), // No limit for comparison data
+            data: calculateCumulative(dayData.sales),
             raw: dayData.sales,
             borderColor: lineColors[index % lineColors.length],
             borderWidth: 2,
@@ -543,8 +543,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
+    // --- MODIFICATION START: Update KPIs for new layout and add Projected Sales --- //
     const updateKpis = (todayData, comparisonData) => {
         kpiContainer.innerHTML = ''; 
+        const selectedDate = salesDateInput.valueAsDate || new Date();
+        dashboardTitleText.textContent = `Live Sales Performance for ${selectedDate.toLocaleDateString('en-GB')}`;
+
         if (!todayData || !todayData.data.length) {
             kpiContainer.innerHTML = '<p class="no-data-text">No data for KPIs.</p>';
             return;
@@ -558,31 +562,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (comparisonData && comparisonData.length > 0) {
             const firstComparison = comparisonData[0];
-            // Compare today's current total to the comparison's total at the same time of day
             comparisonTotal = firstComparison.data[lastSaleIndex] || 0;
             if (comparisonTotal > 0) change = ((todayTotal - comparisonTotal) / comparisonTotal) * 100;
             comparisonLabel = `vs. ${firstComparison.label}`;
         }
 
+        const projectedSales = calculateProjectedSales(todayData.raw);
+
         const kpis = [
-            { title: "Today's Total Sales", value: `£${todayTotal.toFixed(2)}`, change: change, label: comparisonLabel },
-            { title: "Avg. Transaction Value", value: `£${(todayTotal / (todayData.raw.filter(v => v > 0).length || 1)).toFixed(2)}`, label: 'per active half-hour' },
-            { title: "Peak Hour", value: getPeakHour(todayData.raw), label: 'Highest sales interval' }
+            { hero: true, title: "Today's Total Sales", value: `£${todayTotal.toFixed(2)}`, change: change, label: comparisonLabel },
+            { title: "Projected Sales", value: `~ £${projectedSales.toFixed(2)}`, label: 'based on current run-rate' },
+            { title: "Avg. Transaction", value: `£${(todayTotal / (todayData.raw.filter(v => v > 0).length || 1)).toFixed(2)}`, label: 'per active half-hour' },
+            { title: "Peak Hour", value: getPeakHour(todayData.raw), label: 'highest sales interval' }
         ];
 
         kpis.forEach(kpi => {
             const card = document.createElement('div');
             card.className = 'kpi-card';
+            if (kpi.hero) card.classList.add('hero');
+            
             let changeHtml = '';
             if (kpi.change !== null && isFinite(kpi.change)) {
                 const changeClass = kpi.change >= 0 ? 'positive' : 'negative';
                 const sign = kpi.change >= 0 ? '+' : '';
                 changeHtml = `<p class="kpi-change ${changeClass}">${sign}${kpi.change.toFixed(1)}%</p>`;
             }
-             card.innerHTML = `<h4>${kpi.title}</h4><p class="kpi-value">${kpi.value}</p><div class="kpi-footer">${changeHtml}<p class="kpi-label">${kpi.label}</p></div>`;
+             card.innerHTML = `
+                <h4>${kpi.title}</h4>
+                <p class="kpi-value">${kpi.value}</p>
+                <div class="kpi-footer">
+                    ${changeHtml}
+                    <p class="kpi-label">${kpi.label}</p>
+                </div>`;
             kpiContainer.appendChild(card);
         });
     };
+
+    const calculateProjectedSales = (rawSales) => {
+        const lastSaleIndex = findLastSaleIndex(rawSales);
+        if (lastSaleIndex === -1) return 0;
+        
+        const intervalsPassed = lastSaleIndex + 1;
+        const totalSoFar = rawSales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
+        const rate = totalSoFar / intervalsPassed;
+        
+        return rate * timeSlots.length;
+    };
+    // --- MODIFICATION END --- //
+
 
     const getPeakHour = (salesArray) => {
         if (!salesArray || salesArray.length === 0) return 'N/A';
@@ -624,14 +651,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return alignedSales;
     };
 
-    // --- MODIFICATION START: Smarter Chart Logic --- //
     const findLastSaleIndex = (salesArray) => {
         for (let i = salesArray.length - 1; i >= 0; i--) {
             if (salesArray[i] > 0) {
                 return i;
             }
         }
-        return -1; // No sales found
+        return -1;
     };
 
     const calculateCumulative = (data, limitIndex = -1) => {
@@ -640,16 +666,13 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < data.length; i++) {
             sum += data[i];
             if (limitIndex !== -1 && i > limitIndex) {
-                cumulativeData.push(null); // Stop drawing the line
+                cumulativeData.push(null);
             } else {
                 cumulativeData.push(sum);
             }
         }
         return cumulativeData;
     };
-    // --- MODIFICATION END --- //
 
-    // --- KICK-OFF --- //
     init();
 });
-
