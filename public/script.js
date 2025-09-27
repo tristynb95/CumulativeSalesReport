@@ -1,27 +1,20 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- STATE & CONFIG --- //
-    let salesChart = null;
-    let historicalData = [];
-    let currentChartType = 'line';
-    let currentUser = null; // To hold the logged-in user object
-    let peakHourData = null; // To store peak hour info
-    let isPeakHighlightVisible = false; // To toggle highlight
-
-    // --- FIREBASE CONFIGURATION ---
-const firebaseConfig = {
-    apiKey: import.meta.env.VITE_API_KEY,
-    authDomain: import.meta.env.VITE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_APP_ID,
-    measurementId: import.meta.env.VITE_MEASUREMENT_ID
-};
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+        // --- STATE & CONFIG --- //
+        let salesChart = null;
+        let historicalData = [];
+        let currentChartType = 'line';
+        let currentUser = null; // To hold the logged-in user object
+        let peakHourData = null; // To store peak hour info
+        let isPeakHighlightVisible = false; // To toggle highlight
+    
+        // --- FIREBASE CONFIGURATION ---
+        // The firebaseConfig object is now loaded from firebase-config.js
+        // REMOVE the const firebaseConfig = { ... }; block from here.
+    
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
     const timeSlots = Array.from({ length: 28 }, (_, i) => {
         const hour = Math.floor(i / 2) + 5;

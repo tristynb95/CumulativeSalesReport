@@ -64,6 +64,8 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.dataconnect
+public/firebase-config.js
 
 # dataconnect generated files
 .dataconnect
