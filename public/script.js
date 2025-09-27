@@ -7,12 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let peakHourData = null; // To store peak hour info
     let isPeakHighlightVisible = false; // To toggle highlight
 
-    // Initialize Firebase
     // Initialize Firebase if it hasn't been already
-if (!firebase.apps.length) {
-    firebase.initializeApp();
-}
-const auth = firebase.auth();
+    if (!firebase.apps.length) {
+        firebase.initializeApp();
+    }
+    const auth = firebase.auth();
     const db = firebase.firestore();
 
     const timeSlots = Array.from({ length: 28 }, (_, i) => {
@@ -111,37 +110,47 @@ const auth = firebase.auth();
     const handleFile = async (file) => {
         if (!file || !currentUser) return;
         updateFileStatus(`Uploading and processing ${file.name}...`, false);
-        
+
         const token = await currentUser.getIdToken();
 
         const reader = new FileReader();
         reader.onload = (e) => {
             const fileContents = e.target.result.split(',')[1];
-            const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData';
-            
+            // This is your actual Cloud Function URL
+            const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData'; 
+
             fetch(functionUrl, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ fileContents, fileName: file.name }),
             })
             .then(response => {
-                if (!response.ok) return response.json().then(err => { throw new Error(err.error || 'Processing failed') });
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error || 'Processing failed') });
+                }
                 return response.json();
             })
             .then(data => {
+                // The Cloud Function now returns the processed data, which we use directly
+                historicalData = data.processedData;
                 updateFileStatus(data.message, false);
                 localStorage.setItem('savedFileName', file.name);
-                loadFromFirestore();
+                
+                // Now with the guaranteed fresh data, update the UI
+                updateUIWithLoadedData(file.name);
+                handleUpdateChart();
             })
             .catch(error => {
                 console.error('Upload Error:', error);
                 updateFileStatus(`Error: ${error.message}`, true);
             });
         };
-        reader.onerror = () => updateFileStatus("Failed to read file.", true);
+        reader.onerror = () => {
+            updateFileStatus("Failed to read file.", true);
+        };
         reader.readAsDataURL(file);
     };
 
