@@ -624,9 +624,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }));
             chartConfig = {
                 type: 'line', data: { labels: timeSlots, datasets: finalDatasets },
-                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
                     scales: { y: { title: { display: true, text: yAxisTitle } } },
-                    plugins: { legend: { position: 'bottom' } }
+                    plugins: { legend: { position: 'bottom' } },
+                    layout: {
+                        padding: {
+                            top: 10,
+                            right: 20,
+                            bottom: 10,
+                            left: 10
+                        }
+                    }
                 }
             };
         }
