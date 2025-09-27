@@ -398,3 +398,12 @@ body {
 #logout-btn {
     width: 100%;
 }
+
+.kpi-card#peak-2-hours-kpi {
+    cursor: pointer;
+}
+
+.kpi-card#peak-2-hours-kpi.active-highlight {
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 15px var(--primary-accent);
+}

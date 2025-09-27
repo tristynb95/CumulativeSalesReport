@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let historicalData = [];
     let currentChartType = 'line';
     let currentUser = null; // To hold the logged-in user object
+    let peakHourData = null; // To store peak hour info
+    let isPeakHighlightVisible = false; // To toggle highlight
 
     // --- FIREBASE CONFIGURATION ---
     // PASTE YOUR FIREBASE CONFIG OBJECT HERE
@@ -169,12 +171,29 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAdditionalControls(selectedMode);
     };
 
+    const peakHighlightPlugin = {
+        id: 'peakHighlight',
+        afterDraw: (chart) => {
+            if (isPeakHighlightVisible && peakHourData) {
+                const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+                const start = x.getPixelForValue(peakHourData.startIndex);
+                const end = x.getPixelForValue(peakHourData.endIndex + 1); 
+
+                ctx.save();
+                ctx.fillStyle = 'rgba(138, 43, 226, 0.2)';
+                ctx.fillRect(start, top, end - start, bottom - top);
+                ctx.restore();
+            }
+        }
+    };
+
     const setupChartDefaults = () => {
         Chart.defaults.color = '#A9A9A9';
         Chart.defaults.font.family = "'Inter', sans-serif";
         Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+        Chart.register(peakHighlightPlugin);
     };
-
+    
     const populateComparisonModes = () => {
         comparisonModesContainer.innerHTML = ''; // Clear existing buttons
         Object.entries(comparisonModes).forEach(([value, label]) => {
@@ -201,10 +220,29 @@ document.addEventListener('DOMContentLoaded', () => {
             auth.signOut();
         });
 
+        kpiContainer.addEventListener('click', (e) => {
+            const peakKpiCard = e.target.closest('#peak-2-hours-kpi');
+            if (peakKpiCard) {
+                togglePeakHourHighlight();
+            }
+        });
+
         setupDragAndDrop();
         document.addEventListener('fullscreenchange', () => {
             if (!document.fullscreenElement) setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
         });
+    };
+
+    const togglePeakHourHighlight = () => {
+        if (!salesChart || !peakHourData) return;
+        isPeakHighlightVisible = !isPeakHighlightVisible;
+
+        const peakKpiCard = document.getElementById('peak-2-hours-kpi');
+        if (peakKpiCard) {
+            peakKpiCard.classList.toggle('active-highlight', isPeakHighlightVisible);
+        }
+
+        salesChart.update();
     };
     
     const setupDragAndDrop = () => {
@@ -305,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleUpdateChart = () => {
         chartError.textContent = '';
         let todayDataset = null;
+        isPeakHighlightVisible = false;
 
         if (todaysSalesInput.value.trim() !== '') {
             const parsedResult = parseTimeZoneReport(todaysSalesInput.value);
@@ -547,17 +586,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const projectedSales = calculateProjectedSales(todayData.raw);
+        const peak2HoursResult = getPeak2Hours(todayData.raw);
+        peakHourData = peak2HoursResult;
         const kpis = [
             { hero: true, title: "Today's Total Sales", value: `£${todayTotal.toFixed(2)}`, change: change, label: comparisonLabel },
             { title: "Projected Sales", value: `~ £${projectedSales.toFixed(2)}`, label: 'based on current run-rate' },
             { title: "Avg. Transaction", value: `£${(todayTotal / (todayData.raw.filter(v => v > 0).length || 1)).toFixed(2)}`, label: 'per active half-hour' },
-            { title: "Peak 2 Hours", value: getPeak2Hours(todayData.raw), label: 'highest sales interval' }
+            { title: "Peak 2 Hours", value: peak2HoursResult.label, label: 'highest sales interval' }
         ];
 
         kpis.forEach(kpi => {
             const card = document.createElement('div');
             card.className = 'kpi-card';
             if (kpi.hero) card.classList.add('hero');
+            if (kpi.title === 'Peak 2 Hours') {
+                card.id = 'peak-2-hours-kpi';
+            }
             let changeHtml = '';
             if (kpi.change !== null && isFinite(kpi.change)) {
                 const changeClass = kpi.change >= 0 ? 'positive' : 'negative';
@@ -577,12 +621,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const getPeak2Hours = (salesArray) => {
-        if (!salesArray || salesArray.length < 4) return 'N/A';
+        if (!salesArray || salesArray.length < 4) return { label: 'N/A' };
     
         let maxSum = 0;
         let peakStartIndex = -1;
     
-        // A 2-hour window consists of 4 half-hour slots
         for (let i = 0; i <= salesArray.length - 4; i++) {
             const currentSum = salesArray.slice(i, i + 4).reduce((a, b) => a + b, 0);
             if (currentSum > maxSum) {
@@ -591,13 +634,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     
-        if (peakStartIndex === -1 || maxSum === 0) return 'N/A';
+        if (peakStartIndex === -1 || maxSum === 0) return { label: 'N/A' };
     
         const startTime = timeSlots[peakStartIndex];
         const endTimeSlotIndex = peakStartIndex + 3;
         const endTime = timeSlots[endTimeSlotIndex];
     
-        // To get the end time of the slot, we need to add 30 minutes to the start time
         const [endHour, endMinute] = endTime.split(':').map(Number);
         const endDate = new Date();
         endDate.setHours(endHour, endMinute + 30, 0, 0);
@@ -605,7 +647,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const finalEndHour = String(endDate.getHours()).padStart(2, '0');
         const finalEndMinute = String(endDate.getMinutes()).padStart(2, '0');
     
-        return `${startTime} - ${finalEndHour}:${finalEndMinute}`;
+        return {
+            label: `${startTime} - ${finalEndHour}:${finalEndMinute}`,
+            startIndex: peakStartIndex,
+            endIndex: endTimeSlotIndex,
+        };
     };
 
     const getPeakHour = (salesArray) => {
