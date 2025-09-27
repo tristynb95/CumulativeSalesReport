@@ -71,19 +71,23 @@ body {
     flex-direction: column;
     transition: all var(--transition-speed) ease;
     flex-shrink: 0;
+    position: relative; /* Needed for positioning context */
+    z-index: 10;
 }
 .control-panel.collapsed {
     width: 0;
-    padding: 2.5rem 0;
+    padding-left: 0;
+    padding-right: 0;
     opacity: 0;
     transform: translateX(-50px);
     pointer-events: none;
 }
+
 /* --- MODIFICATION START: Panel Toggle Button --- */
 .panel-toggle-btn {
     position: absolute;
     top: 2.5rem;
-    left: var(--panel-width);
+    left: var(--panel-width); /* Position relative to the container */
     transform: translateX(-50%); /* Center on the panel edge when open */
     width: 30px;
     height: 30px;
@@ -97,11 +101,11 @@ body {
     z-index: 100;
     box-shadow: 0 0 15px var(--primary-accent);
     transition: all var(--transition-speed) ease;
-    padding: 0; /* Ensure icon is centered */
+    padding: 0;
 }
 
-/* This rule now transforms the button into a tab when the panel is collapsed */
-.control-panel.collapsed ~ .panel-toggle-btn {
+/* This rule uses the ADJACENT sibling selector (+) which now works */
+.control-panel.collapsed + .panel-toggle-btn {
     left: 0;
     transform: translateX(0); /* Align to the left edge */
     width: 25px; /* Make it narrower */
@@ -113,10 +117,11 @@ body {
     transition: transform var(--transition-speed) ease;
 }
 
-.control-panel.collapsed ~ .panel-toggle-btn i {
+.control-panel.collapsed + .panel-toggle-btn i {
     transform: rotate(180deg);
 }
 /* --- MODIFICATION END --- */
+
 
 .app-header { margin-bottom: 2.5rem; }
 .app-header h1 {
@@ -140,6 +145,7 @@ body {
     border-radius: var(--border-radius);
     padding: 1.5rem;
     transition: opacity var(--transition-speed);
+    overflow: hidden; /* Prevent content overflow during collapse */
 }
 .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
 .step-circle { width: 30px; height: 30px; border-radius: 50%; background: var(--primary-accent); color: white; display: grid; place-items: center; font-weight: bold; flex-shrink: 0; }
