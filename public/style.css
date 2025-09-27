@@ -266,7 +266,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    overflow: hidden; /* This is the fix */
+    overflow: hidden;
 }
 
 .kpi-and-insights-container {
@@ -491,6 +491,13 @@ body {
     .dashboard-grid {
         grid-template-columns: 1fr;
     }
+    .kpi-and-insights-container {
+        order: 1; /* Move KPIs above the chart */
+    }
+    .main-chart-container {
+        order: 2; /* Move the chart below the KPIs */
+        min-height: 500px; /* Give the chart a fixed height */
+    }
     .dashboard-area {
         padding: 1.5rem;
     }
@@ -499,6 +506,7 @@ body {
     }
 }
 
+/* For Tablets and smaller devices */
 @media (max-width: 1024px) {
     :root {
         --panel-width: 320px;
