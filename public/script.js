@@ -32,6 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- DOM ELEMENTS --- //
+    const appLoader = document.getElementById('app-loader');
+    const appContainer = document.getElementById('app-container');
     const excelFileInput = document.getElementById('excel-file-input');
     const uploadBtn = document.getElementById('upload-btn');
     const dropZone = document.getElementById('drop-zone');
@@ -63,21 +65,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const insightsCloseBtn = document.getElementById('insights-close-btn');
     const insightsOverlay = document.getElementById('insights-overlay');
 
-
     // --- AUTHENTICATION LISTENER --- //
     auth.onAuthStateChanged(user => {
         if (user) {
+            // User is logged in
             currentUser = user;
             userEmailEl.textContent = user.email;
             userInfo.classList.remove('hidden');
-            init();
+
+            // Hide the loader and show the main application
+            appLoader.style.display = 'none';
+            appContainer.classList.remove('content-hidden');
+
+            init(); // Initialise the application logic
         } else {
-             if (firestoreListener) {
-                firestoreListener(); // Unsubscribe from the listener on logout
+            // User is not logged in, or session has expired
+            if (firestoreListener) {
+                firestoreListener(); // Unsubscribe from any active data listeners
             }
+            // Redirect to the login page
             window.location.href = '/login.html';
         }
     });
+
 
     // --- INITIALIZATION & DATA HANDLING --- //
     const init = () => {
@@ -85,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
         populateComparisonModes();
         setupEventListeners();
         setupChartDefaults();
-        setupRealtimeListener(); // Changed from loadFromFirestore
+        setupRealtimeListener();
     };
 
     const setupRealtimeListener = () => {
@@ -126,7 +136,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const fileContents = e.target.result.split(',')[1];
-            // This is your actual Cloud Function URL
             const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData';
 
             fetch(functionUrl, {
@@ -146,7 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 updateFileStatus(data.message, false);
                 localStorage.setItem('savedFileName', file.name);
-                // The onSnapshot listener will handle the UI update automatically.
             })
             .catch(error => {
                 console.error('Upload Error:', error);
@@ -168,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveTodaysSales = () => localStorage.setItem('todaysSalesData', todaysSalesInput.value);
 
     const handlePastedDataUpdate = () => {
-        saveTodaysSales(); // Keep saving to localStorage
+        saveTodaysSales();
 
         const pastedText = todaysSalesInput.value;
         const { date } = parseTimeZoneReport(pastedText);

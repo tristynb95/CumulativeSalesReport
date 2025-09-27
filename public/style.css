@@ -480,3 +480,17 @@ body {
         width: 100%;
     }
 }
+
+/* Add these styles to your style.css file */
+.loader-container {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100vh;
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+}
+
+.content-hidden {
+    display: none !important;
+}
