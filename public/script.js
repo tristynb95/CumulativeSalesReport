@@ -585,7 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
             comparisonLabel = `vs. ${comp.label}`;
         }
 
-        const projectedSales = calculateProjectedSales(todayData.raw);
+        const projectedSales = calculateProjectedSales(todayData.raw, historicalData, selectedDate);
         const peak2HoursResult = getPeak2Hours(todayData.raw);
         peakHourData = peak2HoursResult;
         const kpis = [
@@ -612,12 +612,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const calculateProjectedSales = (rawSales) => {
+    const calculateProjectedSales = (rawSales, historicalData, salesDate) => {
         const lastSaleIndex = findLastSaleIndex(rawSales);
         if (lastSaleIndex === -1) return 0;
+
+        const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+        const relevantHistoricalDays = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
+
+        if (relevantHistoricalDays.length < 3) { // Fallback to simple run-rate if not enough data
+            const intervalsPassed = lastSaleIndex + 1;
+            const totalSoFar = rawSales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
+            return (totalSoFar / intervalsPassed) * timeSlots.length;
+        }
+
+        // Calculate the average sales for each time slot for the relevant day of the week
+        const historicalAverageSales = timeSlots.map((_, i) =>
+            relevantHistoricalDays.reduce((sum, d) => sum + d.sales[i], 0) / relevantHistoricalDays.length
+        );
+
         const intervalsPassed = lastSaleIndex + 1;
         const totalSoFar = rawSales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
-        return (totalSoFar / intervalsPassed) * timeSlots.length;
+        const historicalTotalForIntervalsPassed = historicalAverageSales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
+
+        // This factor determines how much better or worse today is performing compared to the historical average
+        const performanceFactor = historicalTotalForIntervalsPassed > 0 ? totalSoFar / historicalTotalForIntervalsPassed : 1;
+
+        const projectedRemainingSales = historicalAverageSales.slice(intervalsPassed).reduce((sum, avg) => sum + (avg * performanceFactor), 0);
+
+        return totalSoFar + projectedRemainingSales;
     };
 
     const getPeak2Hours = (salesArray) => {
