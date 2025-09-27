@@ -1,3 +1,5 @@
+# .github/workflows/firebase-hosting-main.yml
+
 name: Deploy to Firebase Hosting on merge
 'on':
   push:
@@ -8,6 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      # ------------------------------------------------------------------
+      # ---- ADD THIS STEP ----
+      - name: Create config file
+        run: echo "${{ secrets.FIREBASE_CONFIG_JS }}" > public/firebase-config.js
+      # ------------------------------------------------------------------
+
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
