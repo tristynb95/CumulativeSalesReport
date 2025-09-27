@@ -69,9 +69,8 @@ exports.processSalesData = functions.https.onRequest(async (req, res) => {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = xlsx.utils.sheet_to_json(sheet, {header: 1, raw: false});
 
-      if (json.length < 2) {
-        throw new Error("Spreadsheet is empty or invalid.");
-      }
+      if (json.length < 2) throw new Error("Spreadsheet is empty or invalid.");
+
       const header = json[0].map((h) => String(h).trim());
       const timeSlots = Array.from({length: 28}, (_, i) => {
         const hour = Math.floor(i / 2) + 5;
@@ -125,16 +124,9 @@ exports.processSalesData = functions.https.onRequest(async (req, res) => {
       }
 
       await batch.commit();
-
-      // Fetch the newly committed data to return it to the client
-      const snapshot = await db.collection("users").doc(req.user.uid)
-          .collection("dailySales").orderBy("date", "desc").get();
-
-      const processedData = snapshot.docs.map((doc) => doc.data());
-
       const message =
         `Successfully processed and saved ${validRecords} records.`;
-      return res.status(200).send({message, processedData});
+      return res.status(200).send({message});
     } catch (error) {
       functions.logger.error("Error processing file:", error);
       return res.status(500).send({error: error.message});
