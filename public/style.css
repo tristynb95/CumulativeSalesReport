@@ -82,22 +82,21 @@ body {
     pointer-events: none;
 }
 
-/* --- MODIFICATION START: Panel Toggle Button --- */
 .panel-toggle-btn {
     position: absolute;
     top: 2.5rem;
     left: var(--panel-width);
-    transform: translateX(-50%); /* Center the full circle on the border */
+    transform: translateX(-50%);
     height: 50px;
     width: 50px;
     background: var(--primary-accent);
     border: none;
-    border-radius: 50%; /* Full circle for both states */
+    border-radius: 50%;
     color: white;
     cursor: pointer;
     display: grid;
     place-items: center;
-    z-index: 100; /* Sit on top of everything when panel is open */
+    z-index: 100;
     box-shadow: 0 0 15px var(--primary-accent);
     transition: all var(--transition-speed) ease;
     padding: 0;
@@ -105,18 +104,16 @@ body {
 
 .control-panel.collapsed + .panel-toggle-btn {
     left: 0;
-    transform: translateX(-50%); /* Position half-way off the left screen edge */
-    z-index: 5; /* Sit BEHIND the sidebar */
+    transform: translateX(-50%);
+    z-index: 5;
     box-shadow: 5px 0 15px -5px var(--primary-accent);
-    padding-left: 15px; /* Nudge the icon to the right for balance */
+    padding-left: 15px;
 }
 
 .panel-toggle-btn i {
     transition: transform var(--transition-speed) ease;
     font-size: 1.2rem;
 }
-/* --- MODIFICATION END --- */
-
 
 .app-header { margin-bottom: 2.5rem; }
 .app-header h1 {
@@ -257,7 +254,14 @@ body {
 .kpi-change.negative { color: var(--error-color); }
 .kpi-label { color: var(--text-secondary); text-align: right; }
 
-.chart-container { grid-area: chart; display: flex; flex-direction: column; }
+/* --- MODIFICATION START --- */
+.chart-container {
+    grid-area: chart;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* This allows the container to properly size within the grid */
+}
+/* --- MODIFICATION END --- */
 .chart-wrapper { position: relative; flex-grow: 1; margin-top: 1rem; }
 .placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; color: var(--text-secondary); }
 .placeholder-icon { font-size: 4rem; color: var(--primary-accent); opacity: 0.5; margin-bottom: 1rem; }
