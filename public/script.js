@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // PASTE YOUR FIREBASE CONFIG OBJECT HERE
     const firebaseConfig = {
         apiKey: "AIzaSyADonW627WBvOI0VBKUT2NNsx3xs3TTpu4",
-        authDomain: "cumulutivesalesreport.firebaseapp.com",
+        authDomain: "cumulativesalesreport.firebaseapp.com",
         projectId: "cumulativesalesreport",
         storageBucket: "cumulativesalesreport.firebasestorage.app",
         messagingSenderId: "610993633409",
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const lineColors = ['#8A2BE2', '#00BFFF', '#32CD32', '#FF69B4', '#FFD700', '#1E90FF'];
     const comparisonModes = {
         average: 'Average Weekday',
-        top_weekday: 'Record By Weekday',
+        top_weekday: 'Record By Weekday', // This is the mode we are changing
         worst_days: 'Lowest Sales',
         specific: 'Specific Days',
         same_day_last_week: 'Last Week',
@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedTodaysSales = localStorage.getItem('todaysSalesData');
         if (savedTodaysSales) todaysSalesInput.value = savedTodaysSales;
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
-        if (selectedMode) renderAdditionalControls(selectedMode);
+        renderAdditionalControls(selectedMode);
     };
 
     const setupChartDefaults = () => {
@@ -176,6 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const populateComparisonModes = () => {
+        comparisonModesContainer.innerHTML = ''; // Clear existing buttons
         Object.entries(comparisonModes).forEach(([value, label]) => {
             const button = document.createElement('button');
             button.dataset.mode = value;
@@ -260,27 +261,18 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- DATA PARSING & PROCESSING --- //
-    
-    /**
-     * Replaces the old complex parser with a simple, robust one for the 
-     * "Time Zone Totals Report" format.
-     * @param {string} pastedString The raw text pasted by the user.
-     * @returns {{sales: number[]}|null} An object with the sales array or null.
-     */
     const parseTimeZoneReport = (pastedString) => {
         if (!pastedString || typeof pastedString !== "string") return null;
 
         const aggregatedSales = Array(timeSlots.length).fill(0);
         const lines = pastedString.split('\n');
-
-        // Regex to find lines with time slots and capture the start time and the last number (net total).
         const lineRegex = /^(\d{2}:\d{2})\s*-\s*\d{2}:\d{2}.*?\s([\d,]+\.\d{2})\s*$/;
 
         for (const line of lines) {
             const match = line.trim().match(lineRegex);
             if (match) {
-                const startTime = match[1]; // e.g., "07:00"
-                const netSales = parseFloat(match[2].replace(/,/g, '')); // e.g., "47.04"
+                const startTime = match[1];
+                const netSales = parseFloat(match[2].replace(/,/g, ''));
                 
                 const slotIndex = timeSlots.indexOf(startTime);
                 if (slotIndex !== -1) {
@@ -289,7 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Check if any sales were actually parsed
         const totalParsedSales = aggregatedSales.reduce((a, b) => a + b, 0);
         if (totalParsedSales === 0) return null;
 
@@ -316,7 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let todayDataset = null;
 
         if (todaysSalesInput.value.trim() !== '') {
-            // UPDATED: Call the new parser
             const parsedResult = parseTimeZoneReport(todaysSalesInput.value);
             if (!parsedResult) {
                 chartError.textContent = "Could not parse today's sales data. Check the format."; return;
@@ -349,7 +339,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const renderAdditionalControls = (mode) => {
         additionalControlsContainer.innerHTML = '';
-        if (['average', 'top_weekday', 'worst_days', 'specific'].includes(mode)) {
+        // MODIFICATION: Removed 'top_weekday' from this condition as it no longer needs extra controls
+        if (['average', 'worst_days', 'specific'].includes(mode)) {
             const div = document.createElement('div');
             div.className = 'control-group';
             if (mode === 'average') {
@@ -365,12 +356,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const div = document.createElement('div');
         let data, label;
         const sortAndSlice = (sortFn, slice) => [...historicalData].sort(sortFn).slice(0, slice);
-        const dayOfWeek = (salesDateInput.valueAsDate || new Date()).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
-
+        
         switch (mode) {
-            case 'top_weekday':
-                data = historicalData.filter(d => d.dayOfWeek === dayOfWeek).sort((a,b) => b.totalSales - a.totalSales).slice(0, 10);
-                label = `Top 10 ${dayOfWeek}s`; break;
             case 'worst_days':
                 data = sortAndSlice((a, b) => a.totalSales - b.totalSales, 10);
                 label = '10 Lowest Sales Days'; break;
@@ -420,7 +407,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const avgSales = timeSlots.map((_, i) => relevant.reduce((sum, d) => sum + d.sales[i], 0) / relevant.length);
                 return [createDataset({ sales: avgSales, date: new Date() }, 0, { label: `Average ${dayOfWeek}`, borderDash: [5, 5] })];
             }
-            case 'specific': case 'top_weekday': case 'worst_days': {
+            // --- NEW AUTOMATED LOGIC ---
+            case 'top_weekday': {
+                const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+                const top5Days = historicalData
+                    .filter(d => d.dayOfWeek === dayOfWeek)
+                    .sort((a, b) => b.totalSales - a.totalSales)
+                    .slice(0, 5);
+                
+                if (!top5Days.length) {
+                    chartError.textContent = `Not enough historical data for ${dayOfWeek}s.`;
+                    return null;
+                }
+                
+                return top5Days.map((day, i) => createDataset(day, i));
+            }
+            case 'specific': case 'worst_days': {
                 const checked = Array.from(document.querySelectorAll('#additional-controls input:checked'));
                 if (!checked.length) { chartError.textContent = 'Please select at least one day.'; return null; }
                 return checked.slice(0, 6).map((box, i) => {
