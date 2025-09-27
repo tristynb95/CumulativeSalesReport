@@ -222,14 +222,10 @@ body {
 .button-secondary { text-align: center; cursor: pointer; }
 .button-secondary:hover { background-color: rgba(0,0,0,0.4); }
 
-/* =============================================================================== */
-/* START: Redesigned Dashboard Area Styles */
-/* =============================================================================== */
-
 .dashboard-area {
     flex-grow: 1;
     padding: 2.5rem;
-    display: flex; /* Changed from grid to flex */
+    display: flex;
     flex-direction: column;
     gap: 2rem;
     overflow-y: auto;
@@ -261,7 +257,7 @@ body {
 
 .kpi-container {
     display: grid;
-    grid-template-columns: 2fr repeat(3, 1fr); /* Hero KPI is twice as wide */
+    grid-template-columns: 2fr repeat(3, 1fr);
     gap: 1.5rem;
     flex-shrink: 0;
 }
@@ -289,13 +285,12 @@ body {
 .kpi-change.negative { color: var(--error-color); }
 .kpi-label { color: var(--text-secondary); text-align: right; }
 
-
 .chart-and-insights-container {
     display: grid;
-    grid-template-columns: 2.5fr 1fr; /* Chart is 2.5x wider than insights */
+    grid-template-columns: 2.5fr 1fr;
     gap: 1.5rem;
     flex-grow: 1;
-    min-height: 0; /* Critical for child elements to grow correctly */
+    min-height: 0;
 }
 
 .chart-container {
@@ -303,7 +298,12 @@ body {
     flex-direction: column;
     min-height: 0;
 }
-.chart-wrapper { position: relative; flex-grow: 1; }
+/* --- MODIFICATION START --- */
+.chart-wrapper { 
+    position: relative; 
+    flex-grow: 1; /* This is the key fix to make the chart fill the container */
+}
+/* --- MODIFICATION END --- */
 .placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; color: var(--text-secondary); }
 .placeholder-icon { font-size: 4rem; color: var(--primary-accent); opacity: 0.5; margin-bottom: 1rem; }
 
@@ -353,6 +353,3 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--primary-accent); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: #9D4BFF; }
 
-/* =============================================================================== */
-/* END: Redesigned Dashboard Area Styles */
-/* =============================================================================== */
