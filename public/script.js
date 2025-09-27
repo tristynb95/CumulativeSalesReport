@@ -123,6 +123,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- UI & EVENT LISTENERS --- //
+    
+    // ADDED THIS FUNCTION
+    const updateFileStatus = (message, isError = false) => {
+        fileStatus.textContent = message;
+        fileStatus.style.color = isError ? 'var(--error-color)' : 'var(--success-color)';
+    };
+
     const saveTodaysSales = () => localStorage.setItem('todaysSalesData', todaysSalesInput.value);
     
     const updateUIWithLoadedData = (fileName) => {
