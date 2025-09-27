@@ -166,7 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
             salesDateInput.valueAsDate = date;
             const dayOfWeek = date.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
             
-            // Update the custom dropdown
             const wrapper = document.querySelector('.custom-select-wrapper');
             if (wrapper) {
                 const trigger = wrapper.querySelector('.custom-select-trigger span');
@@ -369,8 +368,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const month = parseInt(dateMatch[2], 10) - 1;
                 const year = parseInt(dateMatch[3], 10);
                 
-                const tempDate = new Date(year, month, day);
-                if (tempDate.getFullYear() === year && tempDate.getMonth() === month && tempDate.getDate() === day) {
+                // *** FIX: Use Date.UTC to avoid timezone issues ***
+                const tempDate = new Date(Date.UTC(year, month, day));
+                
+                if (tempDate.getUTCFullYear() === year && tempDate.getUTCMonth() === month && tempDate.getUTCDate() === day) {
                     parsedDate = tempDate;
                 }
             } else {
