@@ -66,6 +66,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInfo = document.getElementById('user-info');
     const userEmailEl = document.getElementById('user-email');
     const logoutBtn = document.getElementById('logout-btn');
+    const insightsToggleBtn = document.getElementById('insights-toggle-btn');
+    const insightsPanel = document.getElementById('insights-panel');
+    const insightsCloseBtn = document.getElementById('insights-close-btn');
+    const insightsOverlay = document.getElementById('insights-overlay');
+
 
     // --- AUTHENTICATION LISTENER --- //
     auth.onAuthStateChanged(user => {
@@ -233,6 +238,11 @@ document.addEventListener('DOMContentLoaded', () => {
         comparisonModesContainer.querySelector('button')?.classList.add('selected');
     };
 
+    const toggleInsightsPanel = () => {
+        insightsPanel.classList.toggle('is-visible');
+        insightsOverlay.classList.toggle('is-visible');
+    };
+    
     const setupEventListeners = () => {
         uploadBtn.addEventListener('click', () => excelFileInput.click());
         excelFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
@@ -244,6 +254,10 @@ document.addEventListener('DOMContentLoaded', () => {
         panelToggleBtn.addEventListener('click', toggleControlPanel);
         todaysSalesInput.addEventListener('input', handlePastedDataUpdate);
         
+        insightsToggleBtn.addEventListener('click', toggleInsightsPanel);
+        insightsCloseBtn.addEventListener('click', toggleInsightsPanel);
+        insightsOverlay.addEventListener('click', toggleInsightsPanel);
+
         logoutBtn.addEventListener('click', () => auth.signOut());
 
         kpiContainer.addEventListener('click', (e) => {
