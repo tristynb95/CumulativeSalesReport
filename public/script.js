@@ -15,7 +15,7 @@ const handleFile = (file) => {
         
         // This is the URL of the function you will deploy.
         // You can get this from the Firebase console after deployment.
-        const functionUrl = 'YOUR_CLOUD_FUNCTION_URL_HERE'; 
+        const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData'; 
 
         fetch(functionUrl, {
             method: 'POST',
