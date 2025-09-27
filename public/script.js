@@ -158,6 +158,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const saveTodaysSales = () => localStorage.setItem('todaysSalesData', todaysSalesInput.value);
     
+    const handlePastedDataUpdate = () => {
+        saveTodaysSales(); // Keep saving to localStorage
+
+        const pastedText = todaysSalesInput.value;
+        const { date } = parseTimeZoneReport(pastedText);
+
+        if (date) {
+            // Update the primary date input
+            salesDateInput.valueAsDate = date;
+
+            // Update the average weekday dropdown if it exists
+            const dayOfWeekSelect = document.getElementById('day-of-week');
+            if (dayOfWeekSelect) {
+                const dayOfWeek = date.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+                dayOfWeekSelect.value = dayOfWeek;
+            }
+        }
+    };
+    
     const updateUIWithLoadedData = (fileName) => {
         fileNameEl.textContent = fileName;
         fileInfoContainer.classList.remove('hidden');
@@ -166,7 +185,10 @@ document.addEventListener('DOMContentLoaded', () => {
         generatePanel.classList.remove('disabled');
         updateFileStatus(`${historicalData.length} records loaded.`);
         const savedTodaysSales = localStorage.getItem('todaysSalesData');
-        if (savedTodaysSales) todaysSalesInput.value = savedTodaysSales;
+        if (savedTodaysSales) {
+            todaysSalesInput.value = savedTodaysSales;
+            handlePastedDataUpdate(); // This will parse the loaded data and update the date/day
+        }
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         renderAdditionalControls(selectedMode);
     };
@@ -214,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fullscreenBtn.addEventListener('click', () => document.querySelector('.chart-and-insights-container').requestFullscreen());
         chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
         panelToggleBtn.addEventListener('click', toggleControlPanel);
-        todaysSalesInput.addEventListener('input', saveTodaysSales);
+        todaysSalesInput.addEventListener('input', handlePastedDataUpdate);
         
         logoutBtn.addEventListener('click', () => {
             auth.signOut();
@@ -300,13 +322,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- DATA PARSING & PROCESSING --- //
     const parseTimeZoneReport = (pastedString) => {
-        if (!pastedString || typeof pastedString !== "string") return null;
+        if (!pastedString || typeof pastedString !== "string") return { sales: null, date: null };
+
+        const lines = pastedString.split('\n');
+        let parsedDate = null;
+        const remainingLines = [];
+
+        // Regex to find a date in DD/MM/YYYY or DD-MM-YYYY format, possibly with a "Date:" prefix
+        const dateRegex = /(?:Date:)?\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/;
+
+        // Look for the date in the first few lines, assuming it's usually at the top
+        for (const line of lines) {
+            const dateMatch = line.match(dateRegex);
+            if (dateMatch && !parsedDate) {
+                const day = parseInt(dateMatch[1], 10);
+                const month = parseInt(dateMatch[2], 10) - 1; // JS months are 0-indexed
+                const year = parseInt(dateMatch[3], 10);
+                
+                // Basic validation for the parsed date parts
+                const tempDate = new Date(year, month, day);
+                if (tempDate.getFullYear() === year && tempDate.getMonth() === month && tempDate.getDate() === day) {
+                    parsedDate = tempDate;
+                }
+            } else {
+                remainingLines.push(line);
+            }
+        }
 
         const aggregatedSales = Array(timeSlots.length).fill(0);
-        const lines = pastedString.split('\n');
         const lineRegex = /^(\d{2}:\d{2})\s*-\s*\d{2}:\d{2}.*?\s([\d,]+\.\d{2})\s*$/;
 
-        for (const line of lines) {
+        for (const line of remainingLines) {
             const match = line.trim().match(lineRegex);
             if (match) {
                 const startTime = match[1];
@@ -320,11 +366,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         const totalParsedSales = aggregatedSales.reduce((a, b) => a + b, 0);
-        if (totalParsedSales === 0) return null;
-
-        return { sales: aggregatedSales };
+        
+        return { 
+            sales: totalParsedSales > 0 ? aggregatedSales : null, 
+            date: parsedDate 
+        };
     };
-
 
     const findLastSaleIndex = (salesArray) => {
         for (let i = salesArray.length - 1; i >= 0; i--) if (salesArray[i] > 0) return i;
@@ -347,7 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (todaysSalesInput.value.trim() !== '') {
             const parsedResult = parseTimeZoneReport(todaysSalesInput.value);
-            if (!parsedResult) {
+            if (!parsedResult.sales) {
                 chartError.textContent = "Could not parse today's sales data. Check the format."; return;
             }
             const lastSaleIndex = findLastSaleIndex(parsedResult.sales);
@@ -378,7 +425,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const renderAdditionalControls = (mode) => {
         additionalControlsContainer.innerHTML = '';
-        // MODIFICATION: Removed 'top_weekday' from this condition as it no longer needs extra controls
         if (['average', 'worst_days', 'specific'].includes(mode)) {
             const div = document.createElement('div');
             div.className = 'control-group';
@@ -446,7 +492,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const avgSales = timeSlots.map((_, i) => relevant.reduce((sum, d) => sum + d.sales[i], 0) / relevant.length);
                 return [createDataset({ sales: avgSales, date: new Date() }, 0, { label: `Average ${dayOfWeek}`, borderDash: [5, 5] })];
             }
-            // --- NEW AUTOMATED LOGIC ---
             case 'top_weekday': {
                 const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
                 const top5Days = historicalData
