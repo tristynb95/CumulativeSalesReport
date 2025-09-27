@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const fileContents = e.target.result.split(',')[1];
             
             // PASTE YOUR CLOUD FUNCTION URL HERE
-            const functionUrl = 'YOUR_CLOUD_FUNCTION_URL_HERE';
+            const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData';
 
             fetch(functionUrl, {
                 method: 'POST',
@@ -273,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let todayDataset = null;
 
         if (todaysSalesInput.value.trim() !== '') {
-            const parsedResult = parseComplexSalesData(todaysSalesInput.value);
+            const parsedResult = parseItemizedSalesData(todaysSalesInput.value);
             if (!parsedResult) {
                 chartError.textContent = "Could not parse today's sales data.";
                 return;
@@ -605,26 +605,54 @@ document.addEventListener('DOMContentLoaded', () => {
         return timeSlots[salesArray.indexOf(maxSales)];
     };
     
-    const parseComplexSalesData = (pastedString) => {
-        if (!pastedString || typeof pastedString !== 'string') return null;
-        const items = pastedString.split(/[\s,£\t\n\r]+/).filter(Boolean);
-        if (items.length === 0) return null;
+    const parseItemizedSalesData = (pastedString) => {
+        if (!pastedString || typeof pastedString !== "string") return null;
 
-        const salesFigures = [];
-        let startTime = '05:00';
-        const timeRegex = /^\d{2}:\d{2}$/;
+        const transactionChunks = pastedString.split(/EFT REF \d+/);
+        const transactions = [];
+        const timeRegex = /(\d{2}\/\d{2}\/\d{4})\s(\d{2}:\d{2}:\d{2})/;
 
-        for (let i = 0; i < items.length; i++) {
-            if (timeRegex.test(items[i]) && items[i+1] === "-") {
-                if (salesFigures.length === 0) startTime = items[i];
-                const value = parseFloat(items[i+7]);
-                if (!isNaN(value)) salesFigures.push(value);
-                i += 7;
+        for (const chunk of transactionChunks) {
+            const lines = chunk.split('\n');
+            if (chunk.includes("Wastage")) continue;
+
+            let timestamp = null;
+            let totalValue = 0;
+
+            const timeMatch = chunk.match(timeRegex);
+            if (timeMatch) {
+                const [_, datePart, timePart] = timeMatch;
+                const [day, month, year] = datePart.split('/');
+                timestamp = new Date(`${year}-${month}-${day}T${timePart}`);
+            } else {
+                continue;
+            }
+
+            const cardLine = lines.find(line => line.trim().startsWith("Card"));
+            if (cardLine) {
+                const cardValueMatch = cardLine.match(/£?(\d+\.\d{2})/);
+                if (cardValueMatch) {
+                    totalValue = parseFloat(cardValueMatch[1]);
+                }
+            }
+            
+            if (timestamp && totalValue > 0) {
+                transactions.push({ timestamp, total: totalValue });
             }
         }
-        if (salesFigures.length > 0) return { sales: salesFigures, startTime };
-        const potentialSales = items.map(parseFloat).filter(v => !isNaN(v));
-        return potentialSales.length > 0 ? { sales: potentialSales, startTime } : null;
+
+        if (transactions.length === 0) return null;
+
+        const aggregatedSales = Array(timeSlots.length).fill(0);
+        for (const transaction of transactions) {
+            const hour = transaction.timestamp.getHours();
+            const minute = transaction.timestamp.getMinutes();
+            const slotIndex = (hour - 5) * 2 + (minute >= 30 ? 1 : 0);
+            if (slotIndex >= 0 && slotIndex < aggregatedSales.length) {
+                aggregatedSales[slotIndex] += transaction.total;
+            }
+        }
+        return { sales: aggregatedSales, startTime: '05:00' };
     };
     
     const alignSalesData = (parsedResult) => {
