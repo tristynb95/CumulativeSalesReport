@@ -1,6 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // The firebaseConfig object is now loaded from firebase-config.js
-    // REMOVE the const firebaseConfig = { ... }; block from here.
+    // PASTE YOUR FIREBASE CONFIG OBJECT HERE
+    const firebaseConfig = {
+        apiKey: "AIzaSyADonW627WBvOI0VBKUT2NNsx3xs3TTpu4",
+        authDomain: "cumulativesalesreport.firebaseapp.com",
+        projectId: "cumulativesalesreport",
+        storageBucket: "cumulativesalesreport.firebasestorage.app",
+        messagingSenderId: "610993633409",
+        appId: "1:610993633409:web:abaaf1e97bcd1acdafb580",
+        measurementId: "G-CX4PTW2Y2F"
+    };
 
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
