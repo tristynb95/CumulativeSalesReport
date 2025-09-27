@@ -418,3 +418,34 @@ body {
     font-size: 0.85rem;
     flex-shrink: 0; /* Prevents footer from shrinking */
 }
+
+/* --- RESPONSIVE ADJUSTMENTS for Laptops & Smaller Screens --- */
+@media (max-width: 1500px) {
+    .dashboard-grid {
+        /* Switch from a side-by-side grid to a stacked layout */
+        grid-template-columns: 1fr;
+    }
+
+    .kpi-container {
+        /* Display KPI cards side-by-side to make better use of space in the stacked layout */
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .dashboard-area {
+        /* Reduce padding to give content more room */
+        padding: 1.5rem;
+    }
+
+    .kpi-value {
+        /* Slightly reduce font size on KPIs to prevent overflow */
+        font-size: 2rem;
+    }
+}
+
+/* Further adjustments for even narrower screens like tablets */
+@media (max-width: 900px) {
+    .kpi-container {
+        /* Stack the KPI cards when the screen gets too narrow */
+        grid-template-columns: 1fr;
+    }
+}
