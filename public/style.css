@@ -79,16 +79,17 @@ body {
     transform: translateX(-50px);
     pointer-events: none;
 }
+/* --- MODIFICATION START: Panel Toggle Button --- */
 .panel-toggle-btn {
     position: absolute;
     top: 2.5rem;
     left: var(--panel-width);
-    transform: translateX(-50%);
+    transform: translateX(-50%); /* Center on the panel edge when open */
     width: 30px;
     height: 30px;
     background: var(--primary-accent);
     border: none;
-    border-radius: 50%;
+    border-radius: 50%; /* Fully rounded when open */
     color: white;
     cursor: pointer;
     display: grid;
@@ -96,10 +97,26 @@ body {
     z-index: 100;
     box-shadow: 0 0 15px var(--primary-accent);
     transition: all var(--transition-speed) ease;
+    padding: 0; /* Ensure icon is centered */
 }
-.control-panel.collapsed ~ .panel-toggle-btn { left: 15px; }
-.panel-toggle-btn i { transition: transform var(--transition-speed) ease; }
-.control-panel.collapsed ~ .panel-toggle-btn i { transform: rotate(180deg); }
+
+/* This rule now transforms the button into a tab when the panel is collapsed */
+.control-panel.collapsed ~ .panel-toggle-btn {
+    left: 0;
+    transform: translateX(0); /* Align to the left edge */
+    width: 25px; /* Make it narrower */
+    border-radius: 0 15px 15px 0; /* Create the semi-circle effect */
+    box-shadow: 5px 0 15px -5px var(--primary-accent);
+}
+
+.panel-toggle-btn i {
+    transition: transform var(--transition-speed) ease;
+}
+
+.control-panel.collapsed ~ .panel-toggle-btn i {
+    transform: rotate(180deg);
+}
+/* --- MODIFICATION END --- */
 
 .app-header { margin-bottom: 2.5rem; }
 .app-header h1 {
