@@ -64,7 +64,7 @@ body {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-right: 1px solid var(--glass-border);
-    padding: 2.5rem;
+    padding: 2rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -115,11 +115,11 @@ body {
     font-size: 1.2rem;
 }
 
-.app-header { margin-bottom: 2.5rem; }
+.app-header { margin-bottom: 2rem; }
 .app-header h1 {
     font-family: var(--font-heading);
     font-weight: 900;
-    font-size: 2.5rem;
+    font-size: 2.25rem;
     color: var(--text-primary);
     letter-spacing: 1px;
 }
@@ -129,24 +129,24 @@ body {
     margin-top: 0.25rem;
 }
 
-.steps-container { display: flex; flex-direction: column; gap: 2.5rem; }
+.steps-container { display: flex; flex-direction: column; gap: 1.5rem; }
 .step-section {
     background: rgba(0, 0, 0, 0.1);
     border: 1px solid var(--glass-border);
     border-radius: var(--border-radius);
-    padding: 1.5rem;
+    padding: 1.25rem;
     transition: opacity var(--transition-speed);
     overflow: hidden;
 }
-.section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+.section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
 .step-circle { width: 30px; height: 30px; border-radius: 50%; background: var(--primary-accent); color: white; display: grid; place-items: center; font-weight: bold; flex-shrink: 0; }
-.section-header h2 { font-family: var(--font-heading); font-size: 1.5rem; color: var(--text-primary); }
+.section-header h2 { font-family: var(--font-heading); font-size: 1.25rem; color: var(--text-primary); }
 
 .drop-zone {
     border: 2px dashed var(--glass-border);
     background: rgba(0, 191, 255, 0.05);
     border-radius: var(--border-radius);
-    padding: 2rem;
+    padding: 1.5rem;
     text-align: center;
     transition: all var(--transition-speed);
 }
@@ -156,7 +156,7 @@ body {
     transform: translateY(-5px);
     box-shadow: 0 0 20px rgba(0, 191, 255, 0.2);
 }
-.drop-zone i { font-size: 2.5rem; color: var(--secondary-accent); margin-bottom: 1rem; }
+.drop-zone i { font-size: 2.5rem; color: var(--secondary-accent); margin-bottom: 0.75rem; }
 .file-info {
     display: flex;
     align-items: center;
@@ -173,7 +173,7 @@ body {
 .delete-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; transition: color var(--transition-speed); }
 .delete-btn:hover { color: var(--error-color); }
 
-.control-group { margin-bottom: 1.5rem; }
+.control-group { margin-bottom: 1rem; }
 .control-group label {
     display: block;
     font-size: 0.9rem;
@@ -186,7 +186,7 @@ body {
     border: 1px solid var(--glass-border);
     color: var(--text-primary);
     border-radius: 8px;
-    padding: 0.8rem;
+    padding: 0.75rem;
     transition: all var(--transition-speed);
     width: 100%;
     font-family: var(--font-body);
@@ -224,10 +224,10 @@ body {
 
 .dashboard-area {
     flex-grow: 1;
-    padding: 2.5rem;
+    padding: 2rem;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.5rem;
     overflow-y: auto;
 }
 
@@ -240,7 +240,7 @@ body {
 
 .dashboard-title h2 {
     font-family: var(--font-heading);
-    font-size: 2rem;
+    font-size: 1.8rem;
     font-weight: 900;
 }
 
@@ -258,7 +258,7 @@ body {
 .dashboard-grid {
     display: grid;
     grid-template-columns: 3fr 1fr;
-    gap: 2rem;
+    gap: 1.5rem;
     flex-grow: 1;
     min-height: 0;
 }
@@ -272,7 +272,7 @@ body {
 .kpi-and-insights-container {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.5rem;
 }
 
 .kpi-container {
@@ -285,7 +285,7 @@ body {
     background: var(--surface-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--border-radius);
-    padding: 1.5rem;
+    padding: 1.25rem;
     box-shadow: var(--shadow-lg);
     transition: all var(--transition-speed) ease;
 }
@@ -295,7 +295,7 @@ body {
     border-color: var(--secondary-accent);
 }
 .kpi-card h4 { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 500; }
-.kpi-value { font-size: 2.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1rem; }
+.kpi-value { font-size: 2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.75rem; }
 .kpi-footer { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.85rem; }
 .kpi-change { font-weight: 600; }
 .kpi-change.positive { color: var(--success-color); }
@@ -408,20 +408,7 @@ body {
     box-shadow: 0 0 15px var(--primary-accent);
 }
 
-/* --- FOOTER STYLES --- */
-.dashboard-footer {
-    margin-top: auto; /* Pushes footer to the bottom of the flex container */
-    padding-top: 1.5rem;
-    text-align: center;
-    color: var(--text-secondary);
-    opacity: 0.7;
-    font-size: 0.85rem;
-    flex-shrink: 0; /* Prevents footer from shrinking */
-}
-
 /* --- RESPONSIVE ADJUSTMENTS --- */
-
-/* For Laptops and smaller screens (like your 15" screen) */
 @media (max-width: 1600px) {
     .dashboard-grid {
         /* Switch from a side-by-side grid to a stacked, vertical layout */
