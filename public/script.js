@@ -1,16 +1,20 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- STATE & CONFIG --- //
-    let salesChart = null;
-    let historicalData = [];
-    let currentChartType = 'line';
-    let currentUser = null; // To hold the logged-in user object
-    let peakHourData = null; // To store peak hour info
-    let isPeakHighlightVisible = false; // To toggle highlight
-
-    // Initialize Firebase - firebaseConfig is now loaded from firebase-config.js
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+        // --- STATE & CONFIG --- //
+        let salesChart = null;
+        let historicalData = [];
+        let currentChartType = 'line';
+        let currentUser = null; // To hold the logged-in user object
+        let peakHourData = null; // To store peak hour info
+        let isPeakHighlightVisible = false; // To toggle highlight
+    
+        // --- FIREBASE CONFIGURATION ---
+        // The firebaseConfig object is now loaded from firebase-config.js
+        // REMOVE the const firebaseConfig = { ... }; block from here.
+    
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
     const timeSlots = Array.from({ length: 28 }, (_, i) => {
         const hour = Math.floor(i / 2) + 5;
@@ -20,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const lineColors = ['#8A2BE2', '#00BFFF', '#32CD32', '#FF69B4', '#FFD700', '#1E90FF'];
     const comparisonModes = {
         average: 'Average Weekday',
-        top_weekday: 'Record By Weekday', // This is the mode we are changing
+        top_weekday: 'Record By Weekday',
         worst_days: 'Lowest Sales',
         specific: 'Specific Days',
         same_day_last_week: 'Last Week',
@@ -42,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const analysisPanel = document.getElementById('analysis-panel');
     const generatePanel = document.getElementById('generate-panel');
     const chartPlaceholder = document.getElementById('chart-placeholder');
-    const chartPanel = document.getElementById('chart-panel');
     const fullscreenBtn = document.getElementById('fullscreen-btn');
     const fileInfoContainer = document.getElementById('file-info-container');
     const fileNameEl = document.getElementById('file-name');
@@ -56,6 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInfo = document.getElementById('user-info');
     const userEmailEl = document.getElementById('user-email');
     const logoutBtn = document.getElementById('logout-btn');
+    const insightsToggleBtn = document.getElementById('insights-toggle-btn');
+    const insightsPanel = document.getElementById('insights-panel');
+    const insightsCloseBtn = document.getElementById('insights-close-btn');
+    const insightsOverlay = document.getElementById('insights-overlay');
+
 
     // --- AUTHENTICATION LISTENER --- //
     auth.onAuthStateChanged(user => {
@@ -146,6 +154,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const saveTodaysSales = () => localStorage.setItem('todaysSalesData', todaysSalesInput.value);
     
+    const handlePastedDataUpdate = () => {
+        saveTodaysSales(); // Keep saving to localStorage
+
+        const pastedText = todaysSalesInput.value;
+        const { date } = parseTimeZoneReport(pastedText);
+
+        if (date) {
+            salesDateInput.valueAsDate = date;
+            const dayOfWeek = date.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+            
+            const wrapper = document.querySelector('.custom-select-wrapper');
+            if (wrapper) {
+                const trigger = wrapper.querySelector('.custom-select-trigger span');
+                const nativeSelect = wrapper.querySelector('select');
+                const options = wrapper.querySelectorAll('.custom-option');
+
+                nativeSelect.value = dayOfWeek;
+                if (trigger) trigger.textContent = dayOfWeek;
+                options.forEach(opt => {
+                    opt.classList.toggle('selected', opt.dataset.value === dayOfWeek);
+                });
+            }
+        }
+    };
+    
     const updateUIWithLoadedData = (fileName) => {
         fileNameEl.textContent = fileName;
         fileInfoContainer.classList.remove('hidden');
@@ -153,10 +186,15 @@ document.addEventListener('DOMContentLoaded', () => {
         analysisPanel.classList.remove('disabled');
         generatePanel.classList.remove('disabled');
         updateFileStatus(`${historicalData.length} records loaded.`);
-        const savedTodaysSales = localStorage.getItem('todaysSalesData');
-        if (savedTodaysSales) todaysSalesInput.value = savedTodaysSales;
+        
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         renderAdditionalControls(selectedMode);
+        
+        const savedTodaysSales = localStorage.getItem('todaysSalesData');
+        if (savedTodaysSales) {
+            todaysSalesInput.value = savedTodaysSales;
+            handlePastedDataUpdate(); 
+        }
     };
 
     const peakHighlightPlugin = {
@@ -183,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     const populateComparisonModes = () => {
-        comparisonModesContainer.innerHTML = ''; // Clear existing buttons
+        comparisonModesContainer.innerHTML = '';
         Object.entries(comparisonModes).forEach(([value, label]) => {
             const button = document.createElement('button');
             button.dataset.mode = value;
@@ -193,25 +231,39 @@ document.addEventListener('DOMContentLoaded', () => {
         comparisonModesContainer.querySelector('button')?.classList.add('selected');
     };
 
+    const toggleInsightsPanel = () => {
+        insightsPanel.classList.toggle('is-visible');
+        insightsOverlay.classList.toggle('is-visible');
+    };
+    
     const setupEventListeners = () => {
         uploadBtn.addEventListener('click', () => excelFileInput.click());
         excelFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
         deleteFileBtn.addEventListener('click', handleDeleteFile);
         updateChartBtn.addEventListener('click', handleUpdateChart);
         comparisonModesContainer.addEventListener('click', handleModeSelection);
-        fullscreenBtn.addEventListener('click', () => document.querySelector('.chart-and-insights-container').requestFullscreen());
+        fullscreenBtn.addEventListener('click', () => document.querySelector('.main-chart-container').requestFullscreen());
         chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
         panelToggleBtn.addEventListener('click', toggleControlPanel);
-        todaysSalesInput.addEventListener('input', saveTodaysSales);
+        todaysSalesInput.addEventListener('input', handlePastedDataUpdate);
         
-        logoutBtn.addEventListener('click', () => {
-            auth.signOut();
-        });
+        insightsToggleBtn.addEventListener('click', toggleInsightsPanel);
+        insightsCloseBtn.addEventListener('click', toggleInsightsPanel);
+        insightsOverlay.addEventListener('click', toggleInsightsPanel);
+
+        logoutBtn.addEventListener('click', () => auth.signOut());
 
         kpiContainer.addEventListener('click', (e) => {
             const peakKpiCard = e.target.closest('#peak-2-hours-kpi');
-            if (peakKpiCard) {
-                togglePeakHourHighlight();
+            if (peakKpiCard) togglePeakHourHighlight();
+        });
+
+        additionalControlsContainer.addEventListener('click', handleCustomSelect);
+        
+        window.addEventListener('click', (e) => {
+            const select = document.querySelector('.custom-select');
+            if (select && !select.contains(e.target)) {
+                select.classList.remove('open');
             }
         });
 
@@ -286,33 +338,74 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAdditionalControls(selectedMode);
     };
 
+    const handleCustomSelect = (e) => {
+        const trigger = e.target.closest('.custom-select-trigger');
+        if (trigger) {
+            trigger.closest('.custom-select').classList.toggle('open');
+            return;
+        }
+
+        const option = e.target.closest('.custom-option');
+        if (option) {
+            const select = option.closest('.custom-select');
+            const nativeSelect = select.previousElementSibling;
+            
+            nativeSelect.value = option.dataset.value;
+            select.querySelector('.custom-select-trigger span').textContent = option.textContent;
+            select.querySelector('.custom-option.selected').classList.remove('selected');
+            option.classList.add('selected');
+            select.classList.remove('open');
+        }
+    };
+    
     // --- DATA PARSING & PROCESSING --- //
     const parseTimeZoneReport = (pastedString) => {
-        if (!pastedString || typeof pastedString !== "string") return null;
+        if (!pastedString || typeof pastedString !== "string") return { sales: null, date: null };
 
-        const aggregatedSales = Array(timeSlots.length).fill(0);
         const lines = pastedString.split('\n');
-        const lineRegex = /^(\d{2}:\d{2})\s*-\s*\d{2}:\d{2}.*?\s([\d,]+\.\d{2})\s*$/;
+        let parsedDate = null;
+        const remainingLines = [];
+
+        const dateRegex = /(?:Date:)?\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/;
 
         for (const line of lines) {
+            const dateMatch = line.match(dateRegex);
+            if (dateMatch && !parsedDate) {
+                const day = parseInt(dateMatch[1], 10);
+                const month = parseInt(dateMatch[2], 10) - 1;
+                const year = parseInt(dateMatch[3], 10);
+                
+                const tempDate = new Date(Date.UTC(year, month, day));
+                
+                if (tempDate.getUTCFullYear() === year && tempDate.getUTCMonth() === month && tempDate.getUTCDate() === day) {
+                    parsedDate = tempDate;
+                }
+            } else {
+                remainingLines.push(line);
+            }
+        }
+
+        const aggregatedSales = Array(timeSlots.length).fill(0);
+        const lineRegex = /^(\d{2}:\d{2})\s*-\s*\d{2}:\d{2}.*?\s([\d,]+\.\d{2})\s*$/;
+
+        for (const line of remainingLines) {
             const match = line.trim().match(lineRegex);
             if (match) {
                 const startTime = match[1];
                 const netSales = parseFloat(match[2].replace(/,/g, ''));
                 
                 const slotIndex = timeSlots.indexOf(startTime);
-                if (slotIndex !== -1) {
-                    aggregatedSales[slotIndex] = netSales;
-                }
+                if (slotIndex !== -1) aggregatedSales[slotIndex] = netSales;
             }
         }
         
         const totalParsedSales = aggregatedSales.reduce((a, b) => a + b, 0);
-        if (totalParsedSales === 0) return null;
-
-        return { sales: aggregatedSales };
+        
+        return { 
+            sales: totalParsedSales > 0 ? aggregatedSales : null, 
+            date: parsedDate 
+        };
     };
-
 
     const findLastSaleIndex = (salesArray) => {
         for (let i = salesArray.length - 1; i >= 0; i--) if (salesArray[i] > 0) return i;
@@ -335,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (todaysSalesInput.value.trim() !== '') {
             const parsedResult = parseTimeZoneReport(todaysSalesInput.value);
-            if (!parsedResult) {
+            if (!parsedResult.sales) {
                 chartError.textContent = "Could not parse today's sales data. Check the format."; return;
             }
             const lastSaleIndex = findLastSaleIndex(parsedResult.sales);
@@ -366,15 +459,34 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const renderAdditionalControls = (mode) => {
         additionalControlsContainer.innerHTML = '';
-        // MODIFICATION: Removed 'top_weekday' from this condition as it no longer needs extra controls
-        if (['average', 'worst_days', 'specific'].includes(mode)) {
+        if (mode === 'average') {
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const currentDate = salesDateInput.valueAsDate || new Date();
+            const currentDay = currentDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+
+            const nativeSelect = `<select id="day-of-week" class="form-input-hidden">${days.map(d => `<option value="${d}" ${d === currentDay ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
+            const customOptions = days.map(d => `<span class="custom-option ${d === currentDay ? 'selected' : ''}" data-value="${d}">${d}</span>`).join('');
+
+            const controlHTML = `
+                <div class="control-group">
+                    <label>Day of the Week</label>
+                    <div class="custom-select-wrapper">
+                        ${nativeSelect}
+                        <div class="custom-select">
+                            <div class="custom-select-trigger">
+                                <span>${currentDay}</span>
+                                <div class="arrow"></div>
+                            </div>
+                            <div class="custom-options">${customOptions}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            additionalControlsContainer.innerHTML = controlHTML;
+        } else if (['worst_days', 'specific'].includes(mode)) {
             const div = document.createElement('div');
             div.className = 'control-group';
-            if (mode === 'average') {
-                div.innerHTML = `<label for="day-of-week">Day of the Week</label><select id="day-of-week" class="form-input">${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(o => `<option>${o}</option>`).join('')}</select>`;
-            } else {
-                div.appendChild(createCheckboxes(mode));
-            }
+            div.appendChild(createCheckboxes(mode));
             additionalControlsContainer.appendChild(div);
         }
     };
@@ -434,7 +546,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const avgSales = timeSlots.map((_, i) => relevant.reduce((sum, d) => sum + d.sales[i], 0) / relevant.length);
                 return [createDataset({ sales: avgSales, date: new Date() }, 0, { label: `Average ${dayOfWeek}`, borderDash: [5, 5] })];
             }
-            // --- NEW AUTOMATED LOGIC ---
             case 'top_weekday': {
                 const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
                 const top5Days = historicalData
