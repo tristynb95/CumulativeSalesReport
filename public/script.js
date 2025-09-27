@@ -1,20 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
-        // --- STATE & CONFIG --- //
-        let salesChart = null;
-        let historicalData = [];
-        let currentChartType = 'line';
-        let currentUser = null; // To hold the logged-in user object
-        let peakHourData = null; // To store peak hour info
-        let isPeakHighlightVisible = false; // To toggle highlight
-    
-        // --- FIREBASE CONFIGURATION ---
-        // The firebaseConfig object is now loaded from firebase-config.js
-        // REMOVE the const firebaseConfig = { ... }; block from here.
-    
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+    // --- STATE & CONFIG --- //
+    let salesChart = null;
+    let historicalData = [];
+    let currentChartType = 'line';
+    let currentUser = null; // To hold the logged-in user object
+    let peakHourData = null; // To store peak hour info
+    let isPeakHighlightVisible = false; // To toggle highlight
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
     const timeSlots = Array.from({ length: 28 }, (_, i) => {
         const hour = Math.floor(i / 2) + 5;
@@ -461,28 +457,44 @@ document.addEventListener('DOMContentLoaded', () => {
         additionalControlsContainer.innerHTML = '';
         if (mode === 'average') {
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const periods = {
+                'all': 'All',
+                'this_month': 'This Month',
+                'last_month': 'Last Month',
+                'last_3_months': 'Last 3 Months',
+                'last_6_months': 'Last 6 Months',
+                'this_year': 'This Year',
+                'last_year': 'Last Year',
+                '1_year': '1 Year'
+            };
+
             const currentDate = salesDateInput.valueAsDate || new Date();
             const currentDay = currentDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
 
-            const nativeSelect = `<select id="day-of-week" class="form-input-hidden">${days.map(d => `<option value="${d}" ${d === currentDay ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
-            const customOptions = days.map(d => `<span class="custom-option ${d === currentDay ? 'selected' : ''}" data-value="${d}">${d}</span>`).join('');
-
-            const controlHTML = `
+            let controlHTML = `
                 <div class="control-group">
                     <label>Day of the Week</label>
                     <div class="custom-select-wrapper">
-                        ${nativeSelect}
+                        <select id="day-of-week" class="form-input-hidden">${days.map(d => `<option value="${d}" ${d === currentDay ? 'selected' : ''}>${d}</option>`).join('')}</select>
                         <div class="custom-select">
-                            <div class="custom-select-trigger">
-                                <span>${currentDay}</span>
-                                <div class="arrow"></div>
-                            </div>
-                            <div class="custom-options">${customOptions}</div>
+                            <div class="custom-select-trigger"><span>${currentDay}</span><div class="arrow"></div></div>
+                            <div class="custom-options">${days.map(d => `<span class="custom-option ${d === currentDay ? 'selected' : ''}" data-value="${d}">${d}</span>`).join('')}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Period</label>
+                    <div class="custom-select-wrapper">
+                        <select id="period" class="form-input-hidden">${Object.entries(periods).map(([val, lab]) => `<option value="${val}">${lab}</option>`).join('')}</select>
+                        <div class="custom-select">
+                            <div class="custom-select-trigger"><span>${periods.all}</span><div class="arrow"></div></div>
+                            <div class="custom-options">${Object.entries(periods).map(([val, lab]) => `<span class="custom-option ${val === 'all' ? 'selected' : ''}" data-value="${val}">${lab}</span>`).join('')}</div>
                         </div>
                     </div>
                 </div>
             `;
             additionalControlsContainer.innerHTML = controlHTML;
+
         } else if (['worst_days', 'specific'].includes(mode)) {
             const div = document.createElement('div');
             div.className = 'control-group';
@@ -541,8 +553,27 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (mode) {
             case 'average': {
                 const dayOfWeek = document.getElementById('day-of-week').value;
-                const relevant = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
-                if (!relevant.length) { chartError.textContent = `No data for ${dayOfWeek}.`; return null; }
+                const period = document.getElementById('period').value;
+                
+                const now = new Date();
+                
+                const filteredData = historicalData.filter(d => {
+                    const date = new Date(d.date);
+                    if (period === 'all') return true;
+                    
+                    if(period === 'this_month') return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+                    if(period === 'last_month') return date.getMonth() === now.getMonth() - 1 && date.getFullYear() === now.getFullYear();
+                    if(period === 'last_3_months') return date >= new Date(now.getFullYear(), now.getMonth() - 3, 1);
+                    if(period === 'last_6_months') return date >= new Date(now.getFullYear(), now.getMonth() - 6, 1);
+                    if(period === 'this_year') return date.getFullYear() === now.getFullYear();
+                    if(period === 'last_year') return date.getFullYear() === now.getFullYear() - 1;
+                    if(period === '1_year') return date >= new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+
+                    return false;
+                });
+                
+                const relevant = filteredData.filter(d => d.dayOfWeek === dayOfWeek);
+                if (!relevant.length) { chartError.textContent = `No data for ${dayOfWeek} in the selected period.`; return null; }
                 const avgSales = timeSlots.map((_, i) => relevant.reduce((sum, d) => sum + d.sales[i], 0) / relevant.length);
                 return [createDataset({ sales: avgSales, date: new Date() }, 0, { label: `Average ${dayOfWeek}`, borderDash: [5, 5] })];
             }
