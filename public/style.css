@@ -267,6 +267,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow: hidden; /* This is the fix */
 }
 
 .kpi-and-insights-container {
@@ -502,49 +503,70 @@ body {
 /* --- RESPONSIVE ADJUSTMENTS --- */
 @media (max-width: 1600px) {
     .dashboard-grid {
+        /* Switch from a side-by-side grid to a stacked, vertical layout */
         grid-template-columns: 1fr;
     }
+
     .dashboard-area {
+        /* Reduce padding to give content more room */
         padding: 1.5rem;
     }
+
     .kpi-value {
+        /* Slightly reduce font size on KPIs to prevent overflow */
         font-size: 2rem;
     }
 }
 
+/* For Tablets and smaller devices */
 @media (max-width: 1024px) {
     :root {
+        /* Reduce the control panel width on smaller screens */
         --panel-width: 320px;
     }
+
     body {
+        /* Allow vertical scrolling on small devices */
         overflow: auto;
     }
+
     .app-container {
+        /* Allow the container to grow vertically as needed */
         min-height: 100vh;
         height: auto;
     }
+
     .kpi-container {
+        /* Stack the KPI cards when the screen gets narrower */
         grid-template-columns: 1fr;
     }
+    
     .comparison-modes {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr; /* Stack comparison buttons */
     }
+
+    /* Make the control panel an overlay instead of pushing content */
     .control-panel {
         position: fixed;
         height: 100%;
         box-shadow: 10px 0px 40px -20px rgba(0, 0, 0, 0.5);
-        transform: translateX(-100%);
+        transform: translateX(-100%); /* Start off-screen */
     }
+
     .control-panel:not(.collapsed) {
-        transform: translateX(0);
+        transform: translateX(0); /* Slide in when not collapsed */
     }
+
     .control-panel.collapsed {
         transform: translateX(-100%);
     }
+
+    /* Reposition the toggle button for the overlay panel */
     .panel-toggle-btn {
         left: 0;
         transform: translateX(50%);
     }
+
      .control-panel:not(.collapsed) + .panel-toggle-btn {
         left: var(--panel-width);
      }
