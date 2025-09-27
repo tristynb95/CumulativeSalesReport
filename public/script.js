@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const minute = i % 2 === 0 ? '00' : '30';
         return `${String(hour).padStart(2, '0')}:${minute}`;
     });
-    // UPDATED: Modern color palette for charts
     const lineColors = ['#8A2BE2', '#00BFFF', '#32CD32', '#FF69B4', '#FFD700', '#1E90FF'];
     const comparisonModes = {
         average: 'Average Weekday',
@@ -55,7 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const setupChartDefaults = () => {
-        // UPDATED: Chart defaults for new theme
         Chart.defaults.color = '#A9A9A9';
         Chart.defaults.font.family = "'Inter', sans-serif";
         Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
@@ -125,11 +123,21 @@ document.addEventListener('DOMContentLoaded', () => {
         insightsContent.innerHTML = '<p class="no-data-text">Generate a chart to see automated insights here.</p>';
     };
 
+    // --- MODIFICATION START: Panel Toggle Logic --- //
     const toggleControlPanel = () => {
-        controlPanel.classList.toggle('collapsed');
-        panelToggleBtn.querySelector('i').classList.toggle('fa-chevron-left');
-        panelToggleBtn.querySelector('i').classList.toggle('fa-chevron-right');
+        const isCollapsed = controlPanel.classList.toggle('collapsed');
+        const icon = panelToggleBtn.querySelector('i');
+        
+        // More reliable way to set the icon direction
+        if (isCollapsed) {
+            icon.classList.remove('fa-chevron-left');
+            icon.classList.add('fa-chevron-right');
+        } else {
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-left');
+        }
     };
+    // --- MODIFICATION END --- //
 
     const handleChartTypeSwitch = (e) => {
         const btn = e.target.closest('.chart-type-btn');
@@ -197,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateFileStatus = (message, isError = false) => {
         fileStatus.textContent = message;
-        fileStatus.style.color = isError ? '#FF69B4' : '#00BFFF'; // Hot pink for error, blue for success
+        fileStatus.style.color = isError ? '#FF69B4' : '#00BFFF';
     };
 
     const parseDDMMYYYY = (dateString) => {

@@ -58,7 +58,6 @@ body {
     z-index: 1;
 }
 
-/* --- Control Panel (Glassmorphism) --- */
 .control-panel {
     width: var(--panel-width);
     background: var(--surface-bg);
@@ -88,33 +87,33 @@ body {
     position: absolute;
     top: 2.5rem;
     left: var(--panel-width);
-    transform: translateX(-12.5px); /* Center the semi-circle on the line */
-    height: 50px; /* Larger height */
-    width: 25px;  /* Width is half of height */
+    transform: translateX(-50%); /* Center the full circle on the border */
+    height: 50px;
+    width: 50px;
     background: var(--primary-accent);
     border: none;
-    border-radius: 25px 0 0 25px; /* Semi-circle with curve on the left */
+    border-radius: 50%; /* Full circle for both states */
     color: white;
     cursor: pointer;
     display: grid;
     place-items: center;
-    z-index: 100;
+    z-index: 100; /* Sit on top of everything when panel is open */
     box-shadow: 0 0 15px var(--primary-accent);
     transition: all var(--transition-speed) ease;
     padding: 0;
 }
 
-/* This rule styles the button when the panel is collapsed */
 .control-panel.collapsed + .panel-toggle-btn {
     left: 0;
-    transform: translateX(0); /* Flush with the screen edge */
-    border-radius: 0 25px 25px 0; /* Flip the semi-circle */
+    transform: translateX(-50%); /* Position half-way off the left screen edge */
+    z-index: 5; /* Sit BEHIND the sidebar */
     box-shadow: 5px 0 15px -5px var(--primary-accent);
+    padding-left: 15px; /* Nudge the icon to the right for balance */
 }
 
 .panel-toggle-btn i {
     transition: transform var(--transition-speed) ease;
-    font-size: 1.2rem; /* Make arrow slightly larger */
+    font-size: 1.2rem;
 }
 /* --- MODIFICATION END --- */
 
@@ -133,7 +132,6 @@ body {
     margin-top: 0.25rem;
 }
 
-/* --- Step Sections & Spacing --- */
 .steps-container { display: flex; flex-direction: column; gap: 2.5rem; }
 .step-section {
     background: rgba(0, 0, 0, 0.1);
@@ -147,7 +145,6 @@ body {
 .step-circle { width: 30px; height: 30px; border-radius: 50%; background: var(--primary-accent); color: white; display: grid; place-items: center; font-weight: bold; flex-shrink: 0; }
 .section-header h2 { font-family: var(--font-heading); font-size: 1.5rem; color: var(--text-primary); }
 
-/* --- File Upload & Info --- */
 .drop-zone {
     border: 2px dashed var(--glass-border);
     background: rgba(0, 191, 255, 0.05);
@@ -179,7 +176,6 @@ body {
 .delete-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; transition: color var(--transition-speed); }
 .delete-btn:hover { color: var(--error-color); }
 
-/* --- Forms & Buttons --- */
 .control-group { margin-bottom: 1.5rem; }
 .control-group label {
     display: block;
@@ -229,17 +225,18 @@ body {
 .button-secondary { text-align: center; cursor: pointer; }
 .button-secondary:hover { background-color: rgba(0,0,0,0.4); }
 
-/* --- Dashboard Area --- */
 .dashboard-area {
     flex-grow: 1;
     padding: 2.5rem;
     display: grid;
+    align-content: start;
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(400px, 1fr);
     grid-template-areas: "header" "kpis" "chart";
     gap: 2rem;
     overflow-y: auto;
 }
+
 .dashboard-header { grid-area: header; display: flex; justify-content: space-between; align-items: center; }
 .kpi-grid { grid-area: kpis; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; }
 
@@ -271,8 +268,7 @@ body {
 .icon-button { background: none; border: none; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; font-size: 1.2rem; }
 .icon-button:hover { color: var(--text-primary); }
 
-/* --- Insights Panel --- */
-.insights-container { display: none; /* Hidden by default, enable with layout change */ }
+.insights-container { display: none; }
 .insights-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; }
 .insights-header i { color: var(--secondary-accent); }
 .insights-body { display: flex; flex-direction: column; gap: 1rem; }
@@ -280,7 +276,6 @@ body {
 .insight-item i { color: var(--success-color); margin-top: 4px; }
 .no-data-text { color: var(--text-secondary); font-style: italic; }
 
-/* --- Dynamically Added Controls --- */
 .checkbox-container {
     max-height: 200px;
     overflow-y: auto;
@@ -301,22 +296,19 @@ body {
 .checkbox-label:hover { background-color: rgba(255, 255, 255, 0.05); }
 .form-checkbox { accent-color: var(--secondary-accent); }
 
-/* Utility Classes */
 .disabled { opacity: 0.5; pointer-events: none; }
 .hidden { display: none !important; }
 .error-text { color: var(--error-color); font-weight: 500; margin-top: 1rem; text-align: center; }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--primary-accent); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: #9D4BFF; }
 
-/* Responsive Layout */
 @media (min-width: 1200px) {
     .dashboard-area {
         grid-template-columns: minmax(0, 1fr) 340px;
-        grid-template-rows: auto auto 1fr;
+        grid-template-rows: auto auto minmax(400px, 1fr);
         grid-template-areas: "header insights" "kpis insights" "chart insights";
     }
     .insights-container { display: block; }
