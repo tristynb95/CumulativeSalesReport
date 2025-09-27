@@ -1,7 +1,7 @@
 // functions/index.js
 
 const functions = require("firebase-functions");
-const admin = "firebase-admin");
+const admin = require("firebase-admin");
 const xlsx = require("xlsx");
 const cors = require("cors")({origin: true});
 
