@@ -71,7 +71,7 @@ body {
     flex-direction: column;
     transition: all var(--transition-speed) ease;
     flex-shrink: 0;
-    position: relative; /* Needed for positioning context */
+    position: relative; /* Crucial for child positioning */
     z-index: 10;
 }
 .control-panel.collapsed {
@@ -87,13 +87,14 @@ body {
 .panel-toggle-btn {
     position: absolute;
     top: 2.5rem;
-    left: var(--panel-width); /* Position relative to the container */
-    transform: translateX(-50%); /* Center on the panel edge when open */
+    right: 0; /* Position relative to the panel's right edge */
+    left: auto; /* Unset left property */
+    transform: translateX(50%); /* Center button on the right border line */
     width: 30px;
     height: 30px;
     background: var(--primary-accent);
     border: none;
-    border-radius: 50%; /* Fully rounded when open */
+    border-radius: 50%;
     color: white;
     cursor: pointer;
     display: grid;
@@ -104,21 +105,11 @@ body {
     padding: 0;
 }
 
-/* This rule uses the ADJACENT sibling selector (+) which now works */
-.control-panel.collapsed + .panel-toggle-btn {
-    left: 0;
-    transform: translateX(0); /* Align to the left edge */
-    width: 25px; /* Make it narrower */
-    border-radius: 0 15px 15px 0; /* Create the semi-circle effect */
-    box-shadow: 5px 0 15px -5px var(--primary-accent);
-}
+/* No longer need special rules for the collapsed state, so they have been removed. */
+/* The icon rotation is now handled entirely by the JS class swapping. */
 
 .panel-toggle-btn i {
     transition: transform var(--transition-speed) ease;
-}
-
-.control-panel.collapsed + .panel-toggle-btn i {
-    transform: rotate(180deg);
 }
 /* --- MODIFICATION END --- */
 
@@ -138,7 +129,7 @@ body {
 }
 
 /* --- Step Sections & Spacing --- */
-.steps-container { display: flex; flex-direction: column; gap: 2.5rem; }
+.steps-container { display: flex; flex-direction: column; gap: 2.5rem; margin-top: 1rem; } /* Added margin-top */
 .step-section {
     background: rgba(0, 0, 0, 0.1);
     border: 1px solid var(--glass-border);
