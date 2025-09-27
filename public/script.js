@@ -51,7 +51,65 @@ document.addEventListener('DOMContentLoaded', () => {
         populateComparisonModes();
         setupEventListeners();
         setupChartDefaults();
+        loadFromLocalStorage(); // MODIFICATION: Load saved data on startup
     };
+
+    // --- MODIFICATION START: Local Storage Functions --- //
+    const loadFromLocalStorage = () => {
+        const savedData = localStorage.getItem('historicalData');
+        const savedFileName = localStorage.getItem('savedFileName');
+        const savedTodaysSales = localStorage.getItem('todaysSalesData');
+
+        if (savedData && savedFileName) {
+            try {
+                historicalData = JSON.parse(savedData);
+                if (historicalData.length > 0) {
+                    updateUIWithLoadedData(savedFileName);
+                }
+            } catch (error) {
+                console.error("Failed to parse historical data from localStorage:", error);
+                localStorage.removeItem('historicalData');
+                localStorage.removeItem('savedFileName');
+            }
+        }
+
+        if (savedTodaysSales) {
+            todaysSalesInput.value = savedTodaysSales;
+        }
+    };
+
+    const saveHistoricalData = (fileName) => {
+        localStorage.setItem('historicalData', JSON.stringify(historicalData));
+        localStorage.setItem('savedFileName', fileName);
+    };
+
+    const saveTodaysSales = () => {
+        localStorage.setItem('todaysSalesData', todaysSalesInput.value);
+    };
+
+    const clearLocalStorage = () => {
+        localStorage.removeItem('historicalData');
+        localStorage.removeItem('savedFileName');
+        localStorage.removeItem('todaysSalesData'); // Also clear today's sales on file delete
+    };
+    
+    const updateUIWithLoadedData = (fileName) => {
+        fileNameEl.textContent = fileName;
+        fileInfoContainer.classList.remove('hidden');
+        dropZone.style.display = 'none';
+        
+        analysisPanel.classList.remove('disabled');
+        generatePanel.classList.remove('disabled');
+
+        updateFileStatus(`${historicalData.length} records loaded from memory.`);
+        
+        const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
+        if (selectedMode) {
+            renderAdditionalControls(selectedMode);
+        }
+    };
+    // --- MODIFICATION END --- //
+
 
     const setupChartDefaults = () => {
         Chart.defaults.color = '#A9A9A9';
@@ -69,7 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
         comparisonModesContainer.querySelector('button')?.classList.add('selected');
     };
 
-    // --- UI & EVENT HANDLERS --- //
     const setupEventListeners = () => {
         uploadBtn.addEventListener('click', () => excelFileInput.click());
         excelFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
@@ -79,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fullscreenBtn.addEventListener('click', () => chartPanel.requestFullscreen());
         chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
         panelToggleBtn.addEventListener('click', toggleControlPanel);
+        todaysSalesInput.addEventListener('input', saveTodaysSales); // MODIFICATION: Save today's sales on input
         setupDragAndDrop();
     };
     
@@ -109,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleDeleteFile = () => {
         historicalData = [];
         excelFileInput.value = '';
+        todaysSalesInput.value = ''; // Also clear the text area
         fileInfoContainer.classList.add('hidden');
         dropZone.style.display = 'block';
         analysisPanel.classList.add('disabled');
@@ -121,14 +180,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         kpiContainer.innerHTML = '';
         insightsContent.innerHTML = '<p class="no-data-text">Generate a chart to see automated insights here.</p>';
+        clearLocalStorage(); // MODIFICATION: Clear saved data
     };
 
-    // --- MODIFICATION START: Panel Toggle Logic --- //
     const toggleControlPanel = () => {
         const isCollapsed = controlPanel.classList.toggle('collapsed');
         const icon = panelToggleBtn.querySelector('i');
         
-        // More reliable way to set the icon direction
         if (isCollapsed) {
             icon.classList.remove('fa-chevron-left');
             icon.classList.add('fa-chevron-right');
@@ -137,7 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.classList.add('fa-chevron-left');
         }
     };
-    // --- MODIFICATION END --- //
 
     const handleChartTypeSwitch = (e) => {
         const btn = e.target.closest('.chart-type-btn');
@@ -176,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 label: `Today's Sales`,
                 data: calculateCumulative(alignedSales),
                 raw: alignedSales,
-                borderColor: '#FF69B4', // Hot Pink for today
+                borderColor: '#FF69B4',
                 borderWidth: 3,
                 pointRadius: 0,
                 tension: 0.4,
@@ -218,7 +275,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Date(dateString);
     };
     
-    // --- DATA PROCESSING & ANALYSIS --- //
     const processFile = (fileContent, fileName) => {
         try {
             const workbook = XLSX.read(fileContent, { type: 'binary' });
@@ -256,18 +312,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }).filter(Boolean);
 
             if (processedData.length === 0) throw new Error("No valid data rows found.");
-
+            
             historicalData = processedData;
-            updateFileStatus(`${historicalData.length} records loaded successfully.`);
-            analysisPanel.classList.remove('disabled');
-            generatePanel.classList.remove('disabled');
-
-            fileNameEl.textContent = fileName;
-            fileInfoContainer.classList.remove('hidden');
-            dropZone.style.display = 'none';
-
-            const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
-            if (selectedMode) renderAdditionalControls(selectedMode);
+            updateUIWithLoadedData(fileName);
+            saveHistoricalData(fileName); // MODIFICATION: Save data on successful upload
 
         } catch (error) {
             updateFileStatus(error.message, true);
@@ -395,7 +443,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     };
     
-    // --- CHART RENDERING --- //
     const renderChart = (datasets) => {
         if (salesChart) salesChart.destroy();
         chartPlaceholder.style.display = 'none';
