@@ -1,13 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // The firebaseConfig object is now loaded from firebase-config.js
-    // REMOVE the const firebaseConfig = { ... }; block from here.
-
-    // Initialize Firebase
-    // Initialize Firebase if it hasn't been already
-if (!firebase.apps.length) {
-    firebase.initializeApp();
-}
-const auth = firebase.auth();
+    // Initialize Firebase - firebaseConfig is now loaded from firebase-config.js
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
 
     const loginForm = document.getElementById('login-form');
     const emailInput = document.getElementById('email');
