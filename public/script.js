@@ -138,18 +138,18 @@ document.addEventListener('DOMContentLoaded', () => {
         setupDragAndDrop();
 
         // --- MODIFICATION START: Add listener for exiting fullscreen --- //
-        document.addEventListener('fullscreenchange', () => {
-            // When we exit fullscreen, document.fullscreenElement becomes null
-            if (!document.fullscreenElement) {
-                // If the chart exists, tell it to resize to its container
-                if (salesChart) {
-                    // A tiny delay ensures the browser has finished its layout changes first
-                    setTimeout(() => {
-                        salesChart.resize();
-                    }, 50);
-                }
-            }
-        });
+        // --- In public/script.js ---
+document.addEventListener('fullscreenchange', () => {
+    // When we exit fullscreen, document.fullscreenElement becomes null
+    if (!document.fullscreenElement) {
+        // A tiny delay ensures the browser has finished its layout changes first.
+        // Dispatching a global resize event is a robust way to force all elements,
+        // including the flexbox container and the chart, to recalculate their dimensions.
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 50);
+    }
+});
         // --- MODIFICATION END --- //
     };
     
