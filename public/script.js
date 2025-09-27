@@ -97,7 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const fileContents = e.target.result.split(',')[1];
-            const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData'; // PASTE YOUR CLOUD FUNCTION URL
+            // PASTE YOUR CLOUD FUNCTION URL HERE
+            const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData';
             fetch(functionUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -225,61 +226,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DATA PARSING & PROCESSING --- //
     const parseRealTimeJournal = (pastedString) => {
         if (!pastedString || typeof pastedString !== "string") return null;
-
         const allTransactions = [];
         const lines = pastedString.split('\n');
-
-        // Define column boundaries based on typical start positions
         const columnBoundaries = [
-            { name: 'POS 1', start: 0, end: 46 },
-            { name: 'POS 2', start: 46, end: 89 },
-            { name: 'POS 3', start: 89, end: 131 },
-            { name: 'POS 81', start: 131, end: 200 } 
+            { name: 'POS 1', start: 0, end: 46 }, { name: 'POS 2', start: 46, end: 89 },
+            { name: 'POS 3', start: 89, end: 131 }, { name: 'POS 81', start: 131, end: 200 }
         ];
-
         const columnTexts = columnBoundaries.map(() => []);
-
-        // Slice each line into its respective column
         for (const line of lines) {
             columnBoundaries.forEach((col, index) => {
                 const lineSlice = line.substring(col.start, col.end).trim();
                 if (lineSlice) columnTexts[index].push(lineSlice);
             });
         }
-        
         const timeRegex = /(\d{2}\/\d{2}\/\d{4})\s(\d{2}:\d{2}:\d{2})/;
-        
-        // Process each column's text block
         for (const colTextArray of columnTexts) {
             const fullText = colTextArray.join('\n');
-            // Split by a reliable transaction separator
             const transactionChunks = fullText.split(/Eft Ref \d+/);
-
             for (const chunk of transactionChunks) {
                 if (chunk.includes("Wastage")) continue;
-
                 const timeMatch = chunk.match(timeRegex);
                 if (!timeMatch) continue;
-
                 const [_, datePart, timePart] = timeMatch;
                 const [day, month, year] = datePart.split('/');
                 const timestamp = new Date(`${year}-${month}-${day}T${timePart}`);
-
                 const cardLine = chunk.split('\n').find(line => line.trim().startsWith("Card"));
                 if (cardLine) {
                     const cardValueMatch = cardLine.match(/£?(\d+\.\d{2})/);
                     if (cardValueMatch) {
                         const totalValue = parseFloat(cardValueMatch[1]);
-                        if (totalValue > 0) {
-                            allTransactions.push({ timestamp, total: totalValue });
-                        }
+                        if (totalValue > 0) allTransactions.push({ timestamp, total: totalValue });
                     }
                 }
             }
         }
-
         if (allTransactions.length === 0) return null;
-
         const aggregatedSales = Array(timeSlots.length).fill(0);
         for (const transaction of allTransactions) {
             const hour = transaction.timestamp.getHours();
@@ -293,9 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const findLastSaleIndex = (salesArray) => {
-        for (let i = salesArray.length - 1; i >= 0; i--) {
-            if (salesArray[i] > 0) return i;
-        }
+        for (let i = salesArray.length - 1; i >= 0; i--) if (salesArray[i] > 0) return i;
         return -1;
     };
 
@@ -315,14 +294,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (todaysSalesInput.value.trim() !== '') {
             const parsedResult = parseRealTimeJournal(todaysSalesInput.value);
             if (!parsedResult) {
-                chartError.textContent = "Could not parse today's sales data. Check the format.";
-                return;
+                chartError.textContent = "Could not parse today's sales data. Check the format."; return;
             }
             const lastSaleIndex = findLastSaleIndex(parsedResult.sales);
             todayDataset = {
-                label: `Today's Sales`,
-                data: calculateCumulative(parsedResult.sales, lastSaleIndex),
-                raw: parsedResult.sales,
+                label: `Today's Sales`, data: calculateCumulative(parsedResult.sales, lastSaleIndex), raw: parsedResult.sales,
                 borderColor: '#FF69B4', borderWidth: 3, pointRadius: 0, tension: 0.4, fill: true,
                 backgroundColor: 'rgba(255, 105, 180, 0.1)'
             };
@@ -337,8 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (datasets.length === 0 && currentChartType !== 'heatmap') {
-            chartError.textContent = "No data available to generate chart.";
-            return;
+            chartError.textContent = "No data available to generate chart."; return;
         }
 
         renderChart(datasets);
@@ -352,11 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const div = document.createElement('div');
             div.className = 'control-group';
             if (mode === 'average') {
-                div.innerHTML = `
-                    <label for="day-of-week">Day of the Week</label>
-                    <select id="day-of-week" class="form-input">
-                        ${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(o => `<option>${o}</option>`).join('')}
-                    </select>`;
+                div.innerHTML = `<label for="day-of-week">Day of the Week</label><select id="day-of-week" class="form-input">${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(o => `<option>${o}</option>`).join('')}</select>`;
             } else {
                 div.appendChild(createCheckboxes(mode));
             }
@@ -431,16 +402,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     return dayData ? createDataset(dayData, i) : null;
                 }).filter(Boolean);
             }
-            case 'same_day_last_week': {
-                const d = new Date(utcDate); d.setUTCDate(d.getUTCDate() - 7); return findAndFormat(d, 'Last Week');
-            }
-            case 'same_date_last_year': {
-                const d = new Date(utcDate); d.setUTCFullYear(d.getUTCFullYear() - 1); return findAndFormat(d, 'Same Date Last Year');
-            }
+            case 'same_day_last_week': { const d = new Date(utcDate); d.setUTCDate(d.getUTCDate() - 7); return findAndFormat(d, 'Last Week'); }
+            case 'same_date_last_year': { const d = new Date(utcDate); d.setUTCFullYear(d.getUTCFullYear() - 1); return findAndFormat(d, 'Same Date Last Year'); }
             case 'same_day_last_year': {
                 const d = new Date(utcDate); d.setUTCFullYear(d.getUTCFullYear() - 1);
-                const dayDiff = utcDate.getUTCDay() - d.getUTCDay();
-                d.setUTCDate(d.getUTCDate() + dayDiff);
+                d.setUTCDate(d.getUTCDate() + (utcDate.getUTCDay() - d.getUTCDay()));
                 return findAndFormat(d, 'Same Day Last Year');
             }
         }
@@ -504,15 +470,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const compTotal = comparisonData[0].data.at(-1);
                 if (compTotal > 0) {
                     const percentChange = (todayTotal / compTotal - 1) * 100;
-                    const verb = percentChange >= 0 ? 'up' : 'down';
-                    insights.push(`Performance is <strong>${verb} ${Math.abs(percentChange).toFixed(1)}%</strong> vs '${comparisonData[0].label}'.`);
+                    insights.push(`Performance is <strong>${percentChange >= 0 ? 'up' : 'down'} ${Math.abs(percentChange).toFixed(1)}%</strong> vs '${comparisonData[0].label}'.`);
                 }
             }
             const morningSales = todayData.raw.slice(0, 14).reduce((a, b) => a + b, 0);
             const afternoonSales = todayData.raw.slice(14).reduce((a, b) => a + b, 0);
             if (morningSales + afternoonSales > 0) {
-                const split = (morningSales / (morningSales + afternoonSales) * 100).toFixed(0);
-                insights.push(`The morning session drove <strong>${split}%</strong> of today's revenue.`);
+                insights.push(`The morning session drove <strong>${(morningSales / (morningSales + afternoonSales) * 100).toFixed(0)}%</strong> of today's revenue.`);
             }
         } else {
             insights.push(`Load today's data to generate live insights.`);
