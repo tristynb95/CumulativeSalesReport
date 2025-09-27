@@ -91,7 +91,7 @@ exports.processSalesData = functions.https.onRequest(async (req, res) => {
         fileTimeSlots.forEach((slot, index) => {
           const mainIndex = timeSlots.indexOf(slot);
           if (mainIndex !== -1) {
-            alignedSales[mainIndex] = parseFloat(row[slice(1)][index]) || 0;
+            alignedSales[mainIndex] = parseFloat(row.slice(1)[index]) || 0;
           }
         });
 
@@ -124,7 +124,8 @@ exports.processSalesData = functions.https.onRequest(async (req, res) => {
       }
 
       await batch.commit();
-      const message = `Successfully processed and saved ${validRecords} records.`;
+      const message =
+        `Successfully processed and saved ${validRecords} records.`;
       return res.status(200).send({message});
     } catch (error) {
       functions.logger.error("Error processing file:", error);
