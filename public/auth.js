@@ -1,14 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
     // PASTE YOUR FIREBASE CONFIG OBJECT HERE
-    const firebaseConfig = {
-        apiKey: "AIzaSyADonW627WBvOI0VBKUT2NNsx3xs3TTpu4",
-        authDomain: "cumulativesalesreport.firebaseapp.com",
-        projectId: "cumulativesalesreport",
-        storageBucket: "cumulativesalesreport.firebasestorage.app",
-        messagingSenderId: "610993633409",
-        appId: "1:610993633409:web:abaaf1e97bcd1acdafb580",
-        measurementId: "G-CX4PTW2Y2F"
-    };
+const firebaseConfig = {
+    apiKey: import.meta.env.VITE_API_KEY,
+    authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_APP_ID,
+    measurementId: import.meta.env.VITE_MEASUREMENT_ID
+};
 
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
