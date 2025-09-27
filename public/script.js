@@ -7,12 +7,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FIREBASE CONFIGURATION ---
     // PASTE YOUR FIREBASE CONFIG OBJECT HERE
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT_ID.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
+        apiKey: "AIzaSyADonW627WBvOI0VBKUT2NNsx3xs3TTpu4",
+        authDomain: "cumulativesalesreport.firebaseapp.com",
+        projectId: "cumulativesalesreport",
+        storageBucket: "cumulativesalesreport.firebasestorage.app",
+        messagingSenderId: "610993633409",
+        appId: "1:610993633409:web:abaaf1e97bcd1acdafb580",
+        measurementId: "G-CX4PTW2Y2F"
     };
 
     // Initialize Firebase
