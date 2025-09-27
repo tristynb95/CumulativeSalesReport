@@ -136,6 +136,21 @@ document.addEventListener('DOMContentLoaded', () => {
         panelToggleBtn.addEventListener('click', toggleControlPanel);
         todaysSalesInput.addEventListener('input', saveTodaysSales);
         setupDragAndDrop();
+
+        // --- MODIFICATION START: Add listener for exiting fullscreen --- //
+        document.addEventListener('fullscreenchange', () => {
+            // When we exit fullscreen, document.fullscreenElement becomes null
+            if (!document.fullscreenElement) {
+                // If the chart exists, tell it to resize to its container
+                if (salesChart) {
+                    // A tiny delay ensures the browser has finished its layout changes first
+                    setTimeout(() => {
+                        salesChart.resize();
+                    }, 50);
+                }
+            }
+        });
+        // --- MODIFICATION END --- //
     };
     
     const setupDragAndDrop = () => {
@@ -543,7 +558,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    // --- MODIFICATION START: Update KPIs for new layout and add Projected Sales --- //
     const updateKpis = (todayData, comparisonData) => {
         kpiContainer.innerHTML = ''; 
         const selectedDate = salesDateInput.valueAsDate || new Date();
@@ -608,7 +622,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         return rate * timeSlots.length;
     };
-    // --- MODIFICATION END --- //
 
 
     const getPeakHour = (salesArray) => {
@@ -676,3 +689,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     init();
 });
+
