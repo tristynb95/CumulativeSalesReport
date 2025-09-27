@@ -6,12 +6,20 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUser = null; // To hold the logged-in user object
     let peakHourData = null; // To store peak hour info
     let isPeakHighlightVisible = false; // To toggle highlight
-    let firestoreListener = null; // To hold the realtime listener unsubscribe function
 
-    // Initialize Firebase if it hasn't been already
-    if (!firebase.apps.length) {
-        firebase.initializeApp();
-    }
+    // --- FIREBASE CONFIGURATION ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyADonW627WBvOI0VBKUT2NNsx3xs3TTpu4",
+        authDomain: "cumulativesalesreport.firebaseapp.com",
+        projectId: "cumulativesalesreport",
+        storageBucket: "cumulativesalesreport.firebasestorage.app",
+        messagingSenderId: "610993633409",
+        appId: "1:610993633409:web:abaaf1e97bcd1acdafb580",
+        measurementId: "G-CX4PTW2Y2F"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
@@ -23,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const lineColors = ['#8A2BE2', '#00BFFF', '#32CD32', '#FF69B4', '#FFD700', '#1E90FF'];
     const comparisonModes = {
         average: 'Average Weekday',
-        top_weekday: 'Record By Weekday',
+        top_weekday: 'Record By Weekday', // This is the mode we are changing
         worst_days: 'Lowest Sales',
         specific: 'Specific Days',
         same_day_last_week: 'Last Week',
@@ -32,8 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- DOM ELEMENTS --- //
-    const appLoader = document.getElementById('app-loader');
-    const appContainer = document.getElementById('app-container');
     const excelFileInput = document.getElementById('excel-file-input');
     const uploadBtn = document.getElementById('upload-btn');
     const dropZone = document.getElementById('drop-zone');
@@ -47,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const analysisPanel = document.getElementById('analysis-panel');
     const generatePanel = document.getElementById('generate-panel');
     const chartPlaceholder = document.getElementById('chart-placeholder');
+    const chartPanel = document.getElementById('chart-panel');
     const fullscreenBtn = document.getElementById('fullscreen-btn');
     const fileInfoContainer = document.getElementById('file-info-container');
     const fileNameEl = document.getElementById('file-name');
@@ -60,34 +67,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInfo = document.getElementById('user-info');
     const userEmailEl = document.getElementById('user-email');
     const logoutBtn = document.getElementById('logout-btn');
-    const insightsToggleBtn = document.getElementById('insights-toggle-btn');
-    const insightsPanel = document.getElementById('insights-panel');
-    const insightsCloseBtn = document.getElementById('insights-close-btn');
-    const insightsOverlay = document.getElementById('insights-overlay');
 
     // --- AUTHENTICATION LISTENER --- //
     auth.onAuthStateChanged(user => {
         if (user) {
-            // User is logged in
             currentUser = user;
             userEmailEl.textContent = user.email;
             userInfo.classList.remove('hidden');
-
-            // Hide the loader and show the main application
-            appLoader.style.display = 'none';
-            appContainer.classList.remove('content-hidden');
-
-            init(); // Initialise the application logic
+            init();
         } else {
-            // User is not logged in, or session has expired
-            if (firestoreListener) {
-                firestoreListener(); // Unsubscribe from any active data listeners
-            }
-            // Redirect to the login page
             window.location.href = '/login.html';
         }
     });
-
 
     // --- INITIALIZATION & DATA HANDLING --- //
     const init = () => {
@@ -95,75 +86,66 @@ document.addEventListener('DOMContentLoaded', () => {
         populateComparisonModes();
         setupEventListeners();
         setupChartDefaults();
-        setupRealtimeListener();
+        loadFromFirestore();
     };
 
-    const setupRealtimeListener = () => {
+    const loadFromFirestore = () => {
         if (!currentUser) return;
-
-        if (firestoreListener) {
-            firestoreListener();
-        }
-
-        updateFileStatus("Connecting to live data...", false);
-
-        const salesCollection = db.collection("users").doc(currentUser.uid).collection("dailySales").orderBy("date", "desc");
-
-        firestoreListener = salesCollection.onSnapshot((querySnapshot) => {
-            historicalData = [];
-            querySnapshot.forEach((doc) => historicalData.push(doc.data()));
-
-            if (historicalData.length > 0) {
-                const savedFileName = localStorage.getItem('savedFileName');
-                updateUIWithLoadedData(savedFileName || 'Database');
-                updateFileStatus(`${historicalData.length} records loaded. Real-time updates are active.`, false);
-                handleUpdateChart();
-            } else {
-                updateFileStatus("No historical data found. Upload a file to start.", false);
-            }
-        }, (error) => {
-            console.error("Error with real-time listener:", error);
-            updateFileStatus("Error connecting to the database.", true);
-        });
+        updateFileStatus("Loading historical data from database...", false);
+        
+        db.collection("users").doc(currentUser.uid).collection("dailySales").orderBy("date", "desc").get()
+          .then((querySnapshot) => {
+              historicalData = [];
+              querySnapshot.forEach((doc) => historicalData.push(doc.data()));
+              if (historicalData.length > 0) {
+                  const savedFileName = localStorage.getItem('savedFileName');
+                  updateUIWithLoadedData(savedFileName || 'Database');
+                  updateFileStatus(`${historicalData.length} records loaded from database.`);
+                  handleUpdateChart(); 
+              } else {
+                  updateFileStatus("No historical data found. Upload a file to start.", false);
+              }
+          })
+          .catch((error) => {
+              console.error("Error loading data from Firestore:", error);
+              updateFileStatus("Error loading from database.", true);
+          });
     };
-
+    
     const handleFile = async (file) => {
         if (!file || !currentUser) return;
         updateFileStatus(`Uploading and processing ${file.name}...`, false);
-
+        
         const token = await currentUser.getIdToken();
 
         const reader = new FileReader();
         reader.onload = (e) => {
             const fileContents = e.target.result.split(',')[1];
             const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData';
-
+            
             fetch(functionUrl, {
                 method: 'POST',
-                headers: {
+                headers: { 
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ fileContents, fileName: file.name }),
             })
             .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.error || 'Processing failed') });
-                }
+                if (!response.ok) return response.json().then(err => { throw new Error(err.error || 'Processing failed') });
                 return response.json();
             })
             .then(data => {
                 updateFileStatus(data.message, false);
                 localStorage.setItem('savedFileName', file.name);
+                loadFromFirestore();
             })
             .catch(error => {
                 console.error('Upload Error:', error);
                 updateFileStatus(`Error: ${error.message}`, true);
             });
         };
-        reader.onerror = () => {
-            updateFileStatus("Failed to read file.", true);
-        };
+        reader.onerror = () => updateFileStatus("Failed to read file.", true);
         reader.readAsDataURL(file);
     };
 
@@ -174,32 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const saveTodaysSales = () => localStorage.setItem('todaysSalesData', todaysSalesInput.value);
-
-    const handlePastedDataUpdate = () => {
-        saveTodaysSales();
-
-        const pastedText = todaysSalesInput.value;
-        const { date } = parseTimeZoneReport(pastedText);
-
-        if (date) {
-            salesDateInput.valueAsDate = date;
-            const dayOfWeek = date.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
-
-            const wrapper = document.querySelector('.custom-select-wrapper');
-            if (wrapper) {
-                const trigger = wrapper.querySelector('.custom-select-trigger span');
-                const nativeSelect = wrapper.querySelector('select');
-                const options = wrapper.querySelectorAll('.custom-option');
-
-                nativeSelect.value = dayOfWeek;
-                if (trigger) trigger.textContent = dayOfWeek;
-                options.forEach(opt => {
-                    opt.classList.toggle('selected', opt.dataset.value === dayOfWeek);
-                });
-            }
-        }
-    };
-
+    
     const updateUIWithLoadedData = (fileName) => {
         fileNameEl.textContent = fileName;
         fileInfoContainer.classList.remove('hidden');
@@ -207,15 +164,10 @@ document.addEventListener('DOMContentLoaded', () => {
         analysisPanel.classList.remove('disabled');
         generatePanel.classList.remove('disabled');
         updateFileStatus(`${historicalData.length} records loaded.`);
-
+        const savedTodaysSales = localStorage.getItem('todaysSalesData');
+        if (savedTodaysSales) todaysSalesInput.value = savedTodaysSales;
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         renderAdditionalControls(selectedMode);
-
-        const savedTodaysSales = localStorage.getItem('todaysSalesData');
-        if (savedTodaysSales) {
-            todaysSalesInput.value = savedTodaysSales;
-            handlePastedDataUpdate();
-        }
     };
 
     const peakHighlightPlugin = {
@@ -224,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isPeakHighlightVisible && peakHourData) {
                 const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
                 const start = x.getPixelForValue(peakHourData.startIndex);
-                const end = x.getPixelForValue(peakHourData.endIndex + 1);
+                const end = x.getPixelForValue(peakHourData.endIndex + 1); 
 
                 ctx.save();
                 ctx.fillStyle = 'rgba(138, 43, 226, 0.2)';
@@ -240,9 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
         Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
         Chart.register(peakHighlightPlugin);
     };
-
+    
     const populateComparisonModes = () => {
-        comparisonModesContainer.innerHTML = '';
+        comparisonModesContainer.innerHTML = ''; // Clear existing buttons
         Object.entries(comparisonModes).forEach(([value, label]) => {
             const button = document.createElement('button');
             button.dataset.mode = value;
@@ -252,39 +204,25 @@ document.addEventListener('DOMContentLoaded', () => {
         comparisonModesContainer.querySelector('button')?.classList.add('selected');
     };
 
-    const toggleInsightsPanel = () => {
-        insightsPanel.classList.toggle('is-visible');
-        insightsOverlay.classList.toggle('is-visible');
-    };
-
     const setupEventListeners = () => {
         uploadBtn.addEventListener('click', () => excelFileInput.click());
         excelFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
         deleteFileBtn.addEventListener('click', handleDeleteFile);
         updateChartBtn.addEventListener('click', handleUpdateChart);
         comparisonModesContainer.addEventListener('click', handleModeSelection);
-        fullscreenBtn.addEventListener('click', () => document.querySelector('.main-chart-container').requestFullscreen());
+        fullscreenBtn.addEventListener('click', () => document.querySelector('.chart-and-insights-container').requestFullscreen());
         chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
         panelToggleBtn.addEventListener('click', toggleControlPanel);
-        todaysSalesInput.addEventListener('input', handlePastedDataUpdate);
-
-        insightsToggleBtn.addEventListener('click', toggleInsightsPanel);
-        insightsCloseBtn.addEventListener('click', toggleInsightsPanel);
-        insightsOverlay.addEventListener('click', toggleInsightsPanel);
-
-        logoutBtn.addEventListener('click', () => auth.signOut());
+        todaysSalesInput.addEventListener('input', saveTodaysSales);
+        
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut();
+        });
 
         kpiContainer.addEventListener('click', (e) => {
             const peakKpiCard = e.target.closest('#peak-2-hours-kpi');
-            if (peakKpiCard) togglePeakHourHighlight();
-        });
-
-        additionalControlsContainer.addEventListener('click', handleCustomSelect);
-
-        window.addEventListener('click', (e) => {
-            const select = document.querySelector('.custom-select');
-            if (select && !select.contains(e.target)) {
-                select.classList.remove('open');
+            if (peakKpiCard) {
+                togglePeakHourHighlight();
             }
         });
 
@@ -305,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         salesChart.update();
     };
-
+    
     const setupDragAndDrop = () => {
         ['dragover', 'drop'].forEach(eventName => dropZone.addEventListener(eventName, e => e.preventDefault()));
         dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
@@ -359,74 +297,33 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAdditionalControls(selectedMode);
     };
 
-    const handleCustomSelect = (e) => {
-        const trigger = e.target.closest('.custom-select-trigger');
-        if (trigger) {
-            trigger.closest('.custom-select').classList.toggle('open');
-            return;
-        }
-
-        const option = e.target.closest('.custom-option');
-        if (option) {
-            const select = option.closest('.custom-select');
-            const nativeSelect = select.previousElementSibling;
-
-            nativeSelect.value = option.dataset.value;
-            select.querySelector('.custom-select-trigger span').textContent = option.textContent;
-            select.querySelector('.custom-option.selected').classList.remove('selected');
-            option.classList.add('selected');
-            select.classList.remove('open');
-        }
-    };
-
     // --- DATA PARSING & PROCESSING --- //
     const parseTimeZoneReport = (pastedString) => {
-        if (!pastedString || typeof pastedString !== "string") return { sales: null, date: null };
-
-        const lines = pastedString.split('\n');
-        let parsedDate = null;
-        const remainingLines = [];
-
-        const dateRegex = /(?:Date:)?\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/;
-
-        for (const line of lines) {
-            const dateMatch = line.match(dateRegex);
-            if (dateMatch && !parsedDate) {
-                const day = parseInt(dateMatch[1], 10);
-                const month = parseInt(dateMatch[2], 10) - 1;
-                const year = parseInt(dateMatch[3], 10);
-
-                const tempDate = new Date(Date.UTC(year, month, day));
-
-                if (tempDate.getUTCFullYear() === year && tempDate.getUTCMonth() === month && tempDate.getUTCDate() === day) {
-                    parsedDate = tempDate;
-                }
-            } else {
-                remainingLines.push(line);
-            }
-        }
+        if (!pastedString || typeof pastedString !== "string") return null;
 
         const aggregatedSales = Array(timeSlots.length).fill(0);
+        const lines = pastedString.split('\n');
         const lineRegex = /^(\d{2}:\d{2})\s*-\s*\d{2}:\d{2}.*?\s([\d,]+\.\d{2})\s*$/;
 
-        for (const line of remainingLines) {
+        for (const line of lines) {
             const match = line.trim().match(lineRegex);
             if (match) {
                 const startTime = match[1];
                 const netSales = parseFloat(match[2].replace(/,/g, ''));
-
+                
                 const slotIndex = timeSlots.indexOf(startTime);
-                if (slotIndex !== -1) aggregatedSales[slotIndex] = netSales;
+                if (slotIndex !== -1) {
+                    aggregatedSales[slotIndex] = netSales;
+                }
             }
         }
-
+        
         const totalParsedSales = aggregatedSales.reduce((a, b) => a + b, 0);
+        if (totalParsedSales === 0) return null;
 
-        return {
-            sales: totalParsedSales > 0 ? aggregatedSales : null,
-            date: parsedDate
-        };
+        return { sales: aggregatedSales };
     };
+
 
     const findLastSaleIndex = (salesArray) => {
         for (let i = salesArray.length - 1; i >= 0; i--) if (salesArray[i] > 0) return i;
@@ -449,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (todaysSalesInput.value.trim() !== '') {
             const parsedResult = parseTimeZoneReport(todaysSalesInput.value);
-            if (!parsedResult.sales) {
+            if (!parsedResult) {
                 chartError.textContent = "Could not parse today's sales data. Check the format."; return;
             }
             const lastSaleIndex = findLastSaleIndex(parsedResult.sales);
@@ -459,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 backgroundColor: 'rgba(255, 105, 180, 0.1)'
             };
         }
-
+        
         let datasets = todayDataset ? [todayDataset] : [];
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         let comparisonData = null;
@@ -469,7 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (datasets.length === 0 && currentChartType !== 'heatmap') {
-            chartError.textContent = "No data available to generate chart. Please upload a file.";
+            chartError.textContent = "No data available to generate chart. Please upload a file."; 
             return;
         }
 
@@ -477,62 +374,27 @@ document.addEventListener('DOMContentLoaded', () => {
         updateKpis(todayDataset, comparisonData);
         generateInsights(todayDataset, comparisonData);
     };
-
+    
     const renderAdditionalControls = (mode) => {
         additionalControlsContainer.innerHTML = '';
-        if (mode === 'average') {
-            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-            const periods = {
-                'all': 'All',
-                'this_month': 'This Month',
-                'last_month': 'Last Month',
-                'last_3_months': 'Last 3 Months',
-                'last_6_months': 'Last 6 Months',
-                'this_year': 'This Year',
-                'last_year': 'Last Year',
-                '1_year': '1 Year'
-            };
-
-            const currentDate = salesDateInput.valueAsDate || new Date();
-            const currentDay = currentDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
-
-            let controlHTML = `
-                <div class="control-group">
-                    <label>Day of the Week</label>
-                    <div class="custom-select-wrapper">
-                        <select id="day-of-week" class="form-input-hidden">${days.map(d => `<option value="${d}" ${d === currentDay ? 'selected' : ''}>${d}</option>`).join('')}</select>
-                        <div class="custom-select">
-                            <div class="custom-select-trigger"><span>${currentDay}</span><div class="arrow"></div></div>
-                            <div class="custom-options">${days.map(d => `<span class="custom-option ${d === currentDay ? 'selected' : ''}" data-value="${d}">${d}</span>`).join('')}</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="control-group">
-                    <label>Period</label>
-                    <div class="custom-select-wrapper">
-                        <select id="period" class="form-input-hidden">${Object.entries(periods).map(([val, lab]) => `<option value="${val}">${lab}</option>`).join('')}</select>
-                        <div class="custom-select">
-                            <div class="custom-select-trigger"><span>${periods.all}</span><div class="arrow"></div></div>
-                            <div class="custom-options">${Object.entries(periods).map(([val, lab]) => `<span class="custom-option ${val === 'all' ? 'selected' : ''}" data-value="${val}">${lab}</span>`).join('')}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            additionalControlsContainer.innerHTML = controlHTML;
-
-        } else if (['worst_days', 'specific'].includes(mode)) {
+        // MODIFICATION: Removed 'top_weekday' from this condition as it no longer needs extra controls
+        if (['average', 'worst_days', 'specific'].includes(mode)) {
             const div = document.createElement('div');
             div.className = 'control-group';
-            div.appendChild(createCheckboxes(mode));
+            if (mode === 'average') {
+                div.innerHTML = `<label for="day-of-week">Day of the Week</label><select id="day-of-week" class="form-input">${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(o => `<option>${o}</option>`).join('')}</select>`;
+            } else {
+                div.appendChild(createCheckboxes(mode));
+            }
             additionalControlsContainer.appendChild(div);
         }
     };
-
+    
     const createCheckboxes = (mode) => {
         const div = document.createElement('div');
         let data, label;
         const sortAndSlice = (sortFn, slice) => [...historicalData].sort(sortFn).slice(0, slice);
-
+        
         switch (mode) {
             case 'worst_days':
                 data = sortAndSlice((a, b) => a.totalSales - b.totalSales, 10);
@@ -557,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         div.appendChild(container);
         return div;
     };
-
+    
     const getComparisonData = (mode) => {
         const salesDate = salesDateInput.valueAsDate || new Date();
         const utcDate = new Date(Date.UTC(salesDate.getFullYear(), salesDate.getMonth(), salesDate.getDate()));
@@ -578,42 +440,24 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (mode) {
             case 'average': {
                 const dayOfWeek = document.getElementById('day-of-week').value;
-                const period = document.getElementById('period').value;
-
-                const now = new Date();
-
-                const filteredData = historicalData.filter(d => {
-                    const date = new Date(d.date);
-                    if (period === 'all') return true;
-
-                    if(period === 'this_month') return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-                    if(period === 'last_month') return date.getMonth() === now.getMonth() - 1 && date.getFullYear() === now.getFullYear();
-                    if(period === 'last_3_months') return date >= new Date(now.getFullYear(), now.getMonth() - 3, 1);
-                    if(period === 'last_6_months') return date >= new Date(now.getFullYear(), now.getMonth() - 6, 1);
-                    if(period === 'this_year') return date.getFullYear() === now.getFullYear();
-                    if(period === 'last_year') return date.getFullYear() === now.getFullYear() - 1;
-                    if(period === '1_year') return date >= new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-
-                    return false;
-                });
-
-                const relevant = filteredData.filter(d => d.dayOfWeek === dayOfWeek);
-                if (!relevant.length) { chartError.textContent = `No data for ${dayOfWeek} in the selected period.`; return null; }
+                const relevant = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
+                if (!relevant.length) { chartError.textContent = `No data for ${dayOfWeek}.`; return null; }
                 const avgSales = timeSlots.map((_, i) => relevant.reduce((sum, d) => sum + d.sales[i], 0) / relevant.length);
                 return [createDataset({ sales: avgSales, date: new Date() }, 0, { label: `Average ${dayOfWeek}`, borderDash: [5, 5] })];
             }
+            // --- NEW AUTOMATED LOGIC ---
             case 'top_weekday': {
                 const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
                 const top5Days = historicalData
                     .filter(d => d.dayOfWeek === dayOfWeek)
                     .sort((a, b) => b.totalSales - a.totalSales)
                     .slice(0, 5);
-
+                
                 if (!top5Days.length) {
                     chartError.textContent = `Not enough historical data for ${dayOfWeek}s.`;
                     return null;
                 }
-
+                
                 return top5Days.map((day, i) => createDataset(day, i));
             }
             case 'specific': case 'worst_days': {
@@ -634,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return null;
     };
-
+    
     const renderChart = (datasets) => {
         if (salesChart) salesChart.destroy();
         chartPlaceholder.style.display = 'none';
@@ -729,9 +573,9 @@ document.addEventListener('DOMContentLoaded', () => {
             insightsContent.innerHTML = '<p class="no-data-text">Not enough data for insights.</p>';
         }
     };
-
+    
     const updateKpis = (todayData, comparisonData) => {
-        kpiContainer.innerHTML = '';
+        kpiContainer.innerHTML = ''; 
         const selectedDate = salesDateInput.valueAsDate || new Date();
         dashboardTitleText.textContent = `Live Sales Performance for ${selectedDate.toLocaleDateString('en-GB')}`;
 
@@ -807,10 +651,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const getPeak2Hours = (salesArray) => {
         if (!salesArray || salesArray.length < 4) return { label: 'N/A' };
-
+    
         let maxSum = 0;
         let peakStartIndex = -1;
-
+    
         for (let i = 0; i <= salesArray.length - 4; i++) {
             const currentSum = salesArray.slice(i, i + 4).reduce((a, b) => a + b, 0);
             if (currentSum > maxSum) {
@@ -818,20 +662,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 peakStartIndex = i;
             }
         }
-
+    
         if (peakStartIndex === -1 || maxSum === 0) return { label: 'N/A' };
-
+    
         const startTime = timeSlots[peakStartIndex];
         const endTimeSlotIndex = peakStartIndex + 3;
         const endTime = timeSlots[endTimeSlotIndex];
-
+    
         const [endHour, endMinute] = endTime.split(':').map(Number);
         const endDate = new Date();
         endDate.setHours(endHour, endMinute + 30, 0, 0);
-
+    
         const finalEndHour = String(endDate.getHours()).padStart(2, '0');
         const finalEndMinute = String(endDate.getMinutes()).padStart(2, '0');
-
+    
         return {
             label: `${startTime} - ${finalEndHour}:${finalEndMinute}`,
             startIndex: peakStartIndex,

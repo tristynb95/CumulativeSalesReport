@@ -47,7 +47,7 @@
                     </div>
                 </section>
 
-                <section id="analysis-panel" class="step-section">
+                <section id="analysis-panel" class="step-section disabled">
                     <div class="section-header">
                         <span class="step-circle">2</span>
                         <h2>Analysis Parameters</h2>
@@ -67,7 +67,7 @@
                     <div id="additional-controls"></div>
                 </section>
 
-                <section id="generate-panel" class="step-section">
+                <section id="generate-panel" class="step-section disabled">
                      <div class="section-header">
                         <span class="step-circle">3</span>
                         <h2>Generate</h2>
@@ -97,9 +97,6 @@
                         <button class="chart-type-btn" data-chart-type="bar" title="Bar Chart"><i class="fas fa-chart-bar"></i></button>
                         <button class="chart-type-btn" data-chart-type="heatmap" title="Heatmap"><i class="fas fa-th"></i></button>
                     </div>
-                    <button id="insights-toggle-btn" class="icon-button" title="Show Insights">
-                        <i class="fas fa-lightbulb"></i>
-                    </button>
                     <button id="fullscreen-btn" class="icon-button" title="Fullscreen">
                         <i class="fas fa-expand"></i>
                     </button>
@@ -116,35 +113,28 @@
                         </div>
                     </div>
                 </div>
-                <div class="kpi-container-wrapper">
+                <div class="kpi-and-insights-container">
                     <section id="kpi-container" class="kpi-container"></section>
+                    <section id="insights-panel" class="insights-container">
+                        <div class="insights-header">
+                            <h3><i class="fas fa-lightbulb"></i> Automated Insights</h3>
+                        </div>
+                        <div id="insights-content" class="insights-body">
+                            <p class="no-data-text">Generate a chart to see automated insights here.</p>
+                        </div>
+                    </section>
                 </div>
             </div>
 
         </main>
-        
-        <div id="insights-overlay" class="insights-overlay"></div>
-        <aside id="insights-panel" class="insights-panel">
-            <div class="insights-header">
-                <h3><i class="fas fa-lightbulb"></i> Automated Insights</h3>
-                <button id="insights-close-btn" class="icon-button close-btn">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div id="insights-content" class="insights-body">
-                <p class="no-data-text">Generate a chart to see automated insights here.</p>
-            </div>
-        </aside>
-
     </div>
-    <script src="firebase-config.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore-compat.js"></script>
-
-<script src="/__/firebase/9.6.7/firebase-app-compat.js"></script>
-<script src="/__/firebase/9.6.7/firebase-auth-compat.js"></script>
-<script src="/__/firebase/9.6.7/firebase-firestore-compat.js"></script>
-<script src="/__/firebase/init.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@^1.1.1"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore-compat.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
