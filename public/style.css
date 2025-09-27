@@ -424,7 +424,7 @@ body {
     .main-chart-container {
         order: 2;
         min-height: 450px;
-        margin-bottom: 2.5rem;
+        margin-bottom: 5rem;
     }
     .dashboard-area {
         padding: 1.5rem;
