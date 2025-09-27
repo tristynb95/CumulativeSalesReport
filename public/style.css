@@ -407,3 +407,14 @@ body {
     border-color: var(--primary-accent);
     box-shadow: 0 0 15px var(--primary-accent);
 }
+
+/* --- FOOTER STYLES --- */
+.dashboard-footer {
+    margin-top: auto; /* Pushes footer to the bottom of the flex container */
+    padding-top: 1.5rem;
+    text-align: center;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    font-size: 0.85rem;
+    flex-shrink: 0; /* Prevents footer from shrinking */
+}
