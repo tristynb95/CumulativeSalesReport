@@ -298,12 +298,10 @@ body {
     flex-direction: column;
     min-height: 0;
 }
-/* --- MODIFICATION START --- */
 .chart-wrapper { 
     position: relative; 
-    flex-grow: 1; /* This is the key fix to make the chart fill the container */
+    flex-grow: 1;
 }
-/* --- MODIFICATION END --- */
 .placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; color: var(--text-secondary); }
 .placeholder-icon { font-size: 4rem; color: var(--primary-accent); opacity: 0.5; margin-bottom: 1rem; }
 
@@ -352,4 +350,3 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--primary-accent); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: #9D4BFF; }
-
