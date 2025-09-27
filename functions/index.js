@@ -1,9 +1,9 @@
 // functions/index.js
 
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
-const xlsx = require('xlsx');
-const cors = require('cors')({ origin: true });
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+const xlsx = require("xlsx");
+const cors = require("cors")({origin: true});
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -28,16 +28,16 @@ const parseDDMMYYYY = (dateString) => {
  */
 exports.processSalesData = functions.https.onRequest((req, res) => {
   cors(req, res, () => {
-    if (req.method !== 'POST') {
-      return res.status(405).send('Method Not Allowed');
+    if (req.method !== "POST") {
+      return res.status(405).send("Method Not Allowed");
     }
     if (!req.body.fileContents) {
-      return res.status(400).send('Bad Request: Missing file contents.');
+      return res.status(400).send("Bad Request: Missing file contents.");
     }
 
     try {
-      const { fileContents } = req.body;
-      const workbook = xlsx.read(fileContents, { type: 'base64' });
+      const {fileContents} = req.body;
+      const workbook = xlsx.read(fileContents, {type: "base64"});
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = xlsx.utils.sheet_to_json(sheet, {
         header: 1,
@@ -45,14 +45,14 @@ exports.processSalesData = functions.https.onRequest((req, res) => {
       });
 
       if (json.length < 2) {
-        throw new Error('Spreadsheet is empty or invalid.');
+        throw new Error("Spreadsheet is empty or invalid.");
       }
 
       const header = json[0].map((h) => String(h).trim());
-      const timeSlots = Array.from({ length: 28 }, (_, i) => {
+      const timeSlots = Array.from({length: 28}, (_, i) => {
         const hour = Math.floor(i / 2) + 5;
-        const minute = i % 2 === 0 ? '00' : '30';
-        return `${String(hour).padStart(2, '0')}:${minute}`;
+        const minute = i % 2 === 0 ? "00" : "30";
+        return `${String(hour).padStart(2, "0")}:${minute}`;
       });
       const fileTimeSlots = header.slice(1);
 
@@ -75,15 +75,15 @@ exports.processSalesData = functions.https.onRequest((req, res) => {
         const totalSales = alignedSales.reduce((a, b) => a + b, 0);
         if (totalSales === 0) return;
 
-        const docId = date.toISOString().split('T')[0];
-        const docRef = db.collection('dailySales').doc(docId);
+        const docId = date.toISOString().split("T")[0];
+        const docRef = db.collection("dailySales").doc(docId);
 
         const dayData = {
           id: docId,
           date: date.toISOString(),
-          dayOfWeek: date.toLocaleDateString('en-GB', {
-            weekday: 'long',
-            timeZone: 'UTC',
+          dayOfWeek: date.toLocaleDateString("en-GB", {
+            weekday: "long",
+            timeZone: "UTC",
           }),
           sales: alignedSales,
           totalSales,
@@ -94,17 +94,17 @@ exports.processSalesData = functions.https.onRequest((req, res) => {
       });
 
       if (validRecords === 0) {
-        throw new Error('No valid data rows found in the file.');
+        throw new Error("No valid data rows found in the file.");
       }
 
       return batch.commit().then(() => {
         const message =
           `Successfully processed and saved ${validRecords} records.`;
-        return res.status(200).send({ message });
+        return res.status(200).send({message});
       });
     } catch (error) {
-      functions.logger.error('Error processing file:', error);
-      return res.status(500).send({ error: error.message });
+      functions.logger.error("Error processing file:", error);
+      return res.status(500).send({error: error.message});
     }
   });
 });
