@@ -61,8 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const controlPanel = document.getElementById('control-panel');
     const dashboardTitleText = document.getElementById('dashboard-title-text');
 
-
-    // --- INITIALIZATION --- //
+    // --- INITIALIZATION & DATA HANDLING --- //
     const init = () => {
         salesDateInput.valueAsDate = new Date();
         populateComparisonModes();
@@ -73,16 +72,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const loadFromFirestore = () => {
         updateFileStatus("Loading historical data from database...", false);
-        
-        db.collection("dailySales")
-          .orderBy("date", "desc") // Get the latest records first
-          .get()
+        db.collection("dailySales").orderBy("date", "desc").get()
           .then((querySnapshot) => {
-              historicalData = []; // Clear existing data
-              querySnapshot.forEach((doc) => {
-                  historicalData.push(doc.data());
-              });
-              
+              historicalData = [];
+              querySnapshot.forEach((doc) => historicalData.push(doc.data()));
               if (historicalData.length > 0) {
                   const savedFileName = localStorage.getItem('savedFileName');
                   updateUIWithLoadedData(savedFileName || 'Database');
@@ -96,30 +89,51 @@ document.addEventListener('DOMContentLoaded', () => {
               updateFileStatus("Error loading from database.", true);
           });
     };
-
-    const saveTodaysSales = () => {
-        localStorage.setItem('todaysSalesData', todaysSalesInput.value);
+    
+    const handleFile = (file) => {
+        if (!file) return;
+        updateFileStatus(`Uploading and processing ${file.name}...`, false);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const fileContents = e.target.result.split(',')[1];
+            const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData'; // PASTE YOUR CLOUD FUNCTION URL
+            fetch(functionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileContents }),
+            })
+            .then(response => {
+                if (!response.ok) return response.json().then(err => { throw new Error(err.error || 'Processing failed') });
+                return response.json();
+            })
+            .then(data => {
+                updateFileStatus(data.message, false);
+                localStorage.setItem('savedFileName', file.name);
+                loadFromFirestore();
+            })
+            .catch(error => {
+                console.error('Upload Error:', error);
+                updateFileStatus(`Error: ${error.message}`, true);
+            });
+        };
+        reader.onerror = () => updateFileStatus("Failed to read file.", true);
+        reader.readAsDataURL(file);
     };
+
+    // --- UI & EVENT LISTENERS --- //
+    const saveTodaysSales = () => localStorage.setItem('todaysSalesData', todaysSalesInput.value);
     
     const updateUIWithLoadedData = (fileName) => {
         fileNameEl.textContent = fileName;
         fileInfoContainer.classList.remove('hidden');
         dropZone.style.display = 'none';
-        
         analysisPanel.classList.remove('disabled');
         generatePanel.classList.remove('disabled');
-
         updateFileStatus(`${historicalData.length} records loaded.`);
-        
         const savedTodaysSales = localStorage.getItem('todaysSalesData');
-        if (savedTodaysSales) {
-            todaysSalesInput.value = savedTodaysSales;
-        }
-
+        if (savedTodaysSales) todaysSalesInput.value = savedTodaysSales;
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
-        if (selectedMode) {
-            renderAdditionalControls(selectedMode);
-        }
+        if (selectedMode) renderAdditionalControls(selectedMode);
     };
 
     const setupChartDefaults = () => {
@@ -149,65 +163,19 @@ document.addEventListener('DOMContentLoaded', () => {
         panelToggleBtn.addEventListener('click', toggleControlPanel);
         todaysSalesInput.addEventListener('input', saveTodaysSales);
         setupDragAndDrop();
-
         document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                setTimeout(() => {
-                    window.dispatchEvent(new Event('resize'));
-                }, 50);
-            }
+            if (!document.fullscreenElement) setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
         });
     };
     
     const setupDragAndDrop = () => {
-        dropZone.addEventListener('dragover', e => { 
-            e.preventDefault(); 
-            dropZone.classList.add('dragover'); 
-        });
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
+        ['dragover', 'drop'].forEach(eventName => dropZone.addEventListener(eventName, e => e.preventDefault()));
+        dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
         dropZone.addEventListener('drop', e => {
-            e.preventDefault();
             dropZone.classList.remove('dragover');
             handleFile(e.dataTransfer.files[0]);
         });
-    };
-
-    const handleFile = (file) => {
-        if (!file) return;
-        updateFileStatus(`Uploading and processing ${file.name}...`, false);
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const fileContents = e.target.result.split(',')[1];
-            
-            // PASTE YOUR CLOUD FUNCTION URL HERE
-            const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData';
-
-            fetch(functionUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileContents }),
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.error || 'Processing failed') });
-                }
-                return response.json();
-            })
-            .then(data => {
-                updateFileStatus(data.message, false);
-                localStorage.setItem('savedFileName', file.name);
-                loadFromFirestore();
-            })
-            .catch(error => {
-                console.error('Upload Error:', error);
-                updateFileStatus(`Error: ${error.message}`, true);
-            });
-        };
-        reader.onerror = () => updateFileStatus("Failed to read file.", true);
-        reader.readAsDataURL(file);
     };
 
     const handleDeleteFile = () => {
@@ -227,8 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
         kpiContainer.innerHTML = '';
         insightsContent.innerHTML = '<p class="no-data-text">Generate a chart to see automated insights here.</p>';
         dashboardTitleText.textContent = 'Sales Dashboard';
-        
-        // Note: This only clears the frontend. Data in Firestore remains.
         localStorage.removeItem('savedFileName');
         localStorage.removeItem('todaysSalesData');
     };
@@ -236,60 +202,127 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleControlPanel = () => {
         const isCollapsed = controlPanel.classList.toggle('collapsed');
         const icon = panelToggleBtn.querySelector('i');
-        
-        if (isCollapsed) {
-            icon.classList.remove('fa-chevron-left');
-            icon.classList.add('fa-chevron-right');
-        } else {
-            icon.classList.remove('fa-chevron-right');
-            icon.classList.add('fa-chevron-left');
-        }
+        icon.className = isCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
     };
 
     const handleChartTypeSwitch = (e) => {
         const btn = e.target.closest('.chart-type-btn');
         if (!btn || btn.classList.contains('active')) return;
-
         currentChartType = btn.dataset.chartType;
         document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-
-        if (salesChart || historicalData.length > 0) {
-           handleUpdateChart();
-        }
+        if (salesChart || historicalData.length > 0) handleUpdateChart();
     };
 
     const handleModeSelection = (e) => {
         if (e.target.tagName !== 'BUTTON') return;
         const selectedMode = e.target.dataset.mode;
-        document.querySelectorAll('#comparison-modes button').forEach(btn => {
-            btn.classList.toggle('selected', btn.dataset.mode === selectedMode);
-        });
+        document.querySelectorAll('#comparison-modes button').forEach(btn => btn.classList.toggle('selected', btn.dataset.mode === selectedMode));
         renderAdditionalControls(selectedMode);
     };
 
+    // --- DATA PARSING & PROCESSING --- //
+    const parseRealTimeJournal = (pastedString) => {
+        if (!pastedString || typeof pastedString !== "string") return null;
+
+        const allTransactions = [];
+        const lines = pastedString.split('\n');
+
+        // Define column boundaries based on typical start positions
+        const columnBoundaries = [
+            { name: 'POS 1', start: 0, end: 46 },
+            { name: 'POS 2', start: 46, end: 89 },
+            { name: 'POS 3', start: 89, end: 131 },
+            { name: 'POS 81', start: 131, end: 200 } 
+        ];
+
+        const columnTexts = columnBoundaries.map(() => []);
+
+        // Slice each line into its respective column
+        for (const line of lines) {
+            columnBoundaries.forEach((col, index) => {
+                const lineSlice = line.substring(col.start, col.end).trim();
+                if (lineSlice) columnTexts[index].push(lineSlice);
+            });
+        }
+        
+        const timeRegex = /(\d{2}\/\d{2}\/\d{4})\s(\d{2}:\d{2}:\d{2})/;
+        
+        // Process each column's text block
+        for (const colTextArray of columnTexts) {
+            const fullText = colTextArray.join('\n');
+            // Split by a reliable transaction separator
+            const transactionChunks = fullText.split(/Eft Ref \d+/);
+
+            for (const chunk of transactionChunks) {
+                if (chunk.includes("Wastage")) continue;
+
+                const timeMatch = chunk.match(timeRegex);
+                if (!timeMatch) continue;
+
+                const [_, datePart, timePart] = timeMatch;
+                const [day, month, year] = datePart.split('/');
+                const timestamp = new Date(`${year}-${month}-${day}T${timePart}`);
+
+                const cardLine = chunk.split('\n').find(line => line.trim().startsWith("Card"));
+                if (cardLine) {
+                    const cardValueMatch = cardLine.match(/£?(\d+\.\d{2})/);
+                    if (cardValueMatch) {
+                        const totalValue = parseFloat(cardValueMatch[1]);
+                        if (totalValue > 0) {
+                            allTransactions.push({ timestamp, total: totalValue });
+                        }
+                    }
+                }
+            }
+        }
+
+        if (allTransactions.length === 0) return null;
+
+        const aggregatedSales = Array(timeSlots.length).fill(0);
+        for (const transaction of allTransactions) {
+            const hour = transaction.timestamp.getHours();
+            const minute = transaction.timestamp.getMinutes();
+            const slotIndex = (hour - 5) * 2 + (minute >= 30 ? 1 : 0);
+            if (slotIndex >= 0 && slotIndex < aggregatedSales.length) {
+                aggregatedSales[slotIndex] += transaction.total;
+            }
+        }
+        return { sales: aggregatedSales };
+    };
+
+    const findLastSaleIndex = (salesArray) => {
+        for (let i = salesArray.length - 1; i >= 0; i--) {
+            if (salesArray[i] > 0) return i;
+        }
+        return -1;
+    };
+
+    const calculateCumulative = (data, limitIndex = -1) => {
+        let sum = 0;
+        return data.map((value, i) => {
+            sum += value;
+            return (limitIndex !== -1 && i > limitIndex) ? null : sum;
+        });
+    };
+
+    // --- CHARTING & INSIGHTS --- //
     const handleUpdateChart = () => {
         chartError.textContent = '';
         let todayDataset = null;
 
         if (todaysSalesInput.value.trim() !== '') {
-            const parsedResult = parseItemizedSalesData(todaysSalesInput.value);
+            const parsedResult = parseRealTimeJournal(todaysSalesInput.value);
             if (!parsedResult) {
-                chartError.textContent = "Could not parse today's sales data.";
+                chartError.textContent = "Could not parse today's sales data. Check the format.";
                 return;
             }
-            const alignedSales = alignSalesData(parsedResult);
-            const lastSaleIndex = findLastSaleIndex(alignedSales);
-
+            const lastSaleIndex = findLastSaleIndex(parsedResult.sales);
             todayDataset = {
                 label: `Today's Sales`,
-                data: calculateCumulative(alignedSales, lastSaleIndex),
-                raw: alignedSales,
-                borderColor: '#FF69B4',
-                borderWidth: 3,
-                pointRadius: 0,
-                tension: 0.4,
-                fill: true,
+                data: calculateCumulative(parsedResult.sales, lastSaleIndex),
+                raw: parsedResult.sales,
+                borderColor: '#FF69B4', borderWidth: 3, pointRadius: 0, tension: 0.4, fill: true,
                 backgroundColor: 'rgba(255, 105, 180, 0.1)'
             };
         }
@@ -310,11 +343,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderChart(datasets);
         updateKpis(todayDataset, comparisonData);
         generateInsights(todayDataset, comparisonData);
-    };
-
-    const updateFileStatus = (message, isError = false) => {
-        fileStatus.textContent = message;
-        fileStatus.style.color = isError ? '#FF69B4' : '#00BFFF';
     };
     
     const renderAdditionalControls = (mode) => {
@@ -338,30 +366,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const createCheckboxes = (mode) => {
         const div = document.createElement('div');
         let data, label;
-
         const sortAndSlice = (sortFn, slice) => [...historicalData].sort(sortFn).slice(0, slice);
+        const dayOfWeek = (salesDateInput.valueAsDate || new Date()).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
 
         switch (mode) {
             case 'top_weekday':
-                const salesDate = salesDateInput.valueAsDate || new Date();
-                const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
                 data = historicalData.filter(d => d.dayOfWeek === dayOfWeek).sort((a,b) => b.totalSales - a.totalSales).slice(0, 10);
-                label = `Top 10 ${dayOfWeek}s`;
-                break;
+                label = `Top 10 ${dayOfWeek}s`; break;
             case 'worst_days':
                 data = sortAndSlice((a, b) => a.totalSales - b.totalSales, 10);
-                label = '10 Lowest Sales Days';
-                break;
+                label = '10 Lowest Sales Days'; break;
             case 'specific':
                 data = sortAndSlice((a, b) => new Date(b.date) - new Date(a.date), 100);
-                label = 'Select up to 6 days';
-                break;
+                label = 'Select up to 6 days'; break;
         }
 
         div.innerHTML = `<label>${label}</label>`;
         const container = document.createElement('div');
         container.className = 'checkbox-container';
-
         if (data?.length) {
             data.forEach(day => {
                 const formattedDate = new Date(day.date).toLocaleDateString('en-GB', { timeZone: 'UTC' });
@@ -381,14 +403,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const createDataset = (dayData, index, options = {}) => ({
             label: options.label || new Date(dayData.date).toLocaleDateString('en-GB', { timeZone: 'UTC' }),
-            data: calculateCumulative(dayData.sales),
-            raw: dayData.sales,
-            borderColor: lineColors[index % lineColors.length],
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.4,
-            fill: false,
-            ...options
+            data: calculateCumulative(dayData.sales), raw: dayData.sales, borderColor: lineColors[index % lineColors.length],
+            borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false, ...options
         });
 
         const findAndFormat = (targetDate, label) => {
@@ -406,9 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const avgSales = timeSlots.map((_, i) => relevant.reduce((sum, d) => sum + d.sales[i], 0) / relevant.length);
                 return [createDataset({ sales: avgSales, date: new Date() }, 0, { label: `Average ${dayOfWeek}`, borderDash: [5, 5] })];
             }
-            case 'specific':
-            case 'top_weekday':
-            case 'worst_days': {
+            case 'specific': case 'top_weekday': case 'worst_days': {
                 const checked = Array.from(document.querySelectorAll('#additional-controls input:checked'));
                 if (!checked.length) { chartError.textContent = 'Please select at least one day.'; return null; }
                 return checked.slice(0, 6).map((box, i) => {
@@ -423,8 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const d = new Date(utcDate); d.setUTCFullYear(d.getUTCFullYear() - 1); return findAndFormat(d, 'Same Date Last Year');
             }
             case 'same_day_last_year': {
-                const d = new Date(utcDate);
-                d.setUTCFullYear(d.getUTCFullYear() - 1);
+                const d = new Date(utcDate); d.setUTCFullYear(d.getUTCFullYear() - 1);
                 const dayDiff = utcDate.getUTCDay() - d.getUTCDay();
                 d.setUTCDate(d.getUTCDate() + dayDiff);
                 return findAndFormat(d, 'Same Day Last Year');
@@ -446,19 +459,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             chartConfig = {
                 type: 'matrix',
-                data: {
-                    datasets: [{
-                        label: 'Sales Heatmap (£)',
-                        data: heatmapData,
-                        backgroundColor: (c) => `rgba(0, 191, 255, ${Math.min(0.1 + ((c.dataset.data[c.dataIndex]?.v || 0) / 150), 1)})`,
-                        borderColor: 'rgba(26, 26, 46, 0.5)',
-                        borderWidth: 1,
-                        width: ({chart}) => (chart.chartArea || {}).width / timeSlots.length - 1,
-                        height: ({chart}) => (chart.chartArea || {}).height / 7 - 1,
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
+                data: { datasets: [{
+                    label: 'Sales Heatmap (£)', data: heatmapData,
+                    backgroundColor: c => `rgba(0, 191, 255, ${Math.min(0.1 + ((c.dataset.data[c.dataIndex]?.v || 0) / 150), 1)})`,
+                    borderColor: 'rgba(26, 26, 46, 0.5)', borderWidth: 1,
+                    width: ({chart}) => (chart.chartArea || {}).width / timeSlots.length - 1,
+                    height: ({chart}) => (chart.chartArea || {}).height / 7 - 1,
+                }] },
+                options: { responsive: true, maintainAspectRatio: false,
                     scales: {
                         x: { type: 'category', labels: timeSlots, ticks: { autoSkip: true, maxTicksLimit: 10 }, grid: { display: false } },
                         y: { type: 'category', labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], offset: true, grid: { display: false } }
@@ -467,18 +475,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
         } else {
-            let finalDatasets, yAxisTitle;
-            if (currentChartType === 'bar') {
-                finalDatasets = datasets.map(ds => ({ ...ds, data: ds.raw, type: 'bar', backgroundColor: ds.borderColor + '80' }));
-                yAxisTitle = 'Sales per Interval (£)';
-            } else {
-                finalDatasets = datasets.map(ds => ({ ...ds, type: 'line', backgroundColor: ds.backgroundColor || (ds.borderColor + '1A') }));
-                yAxisTitle = 'Cumulative Sales (£)';
-            }
+            const yAxisTitle = currentChartType === 'bar' ? 'Sales per Interval (£)' : 'Cumulative Sales (£)';
+            const finalDatasets = datasets.map(ds => ({
+                ...ds,
+                data: currentChartType === 'bar' ? ds.raw : ds.data,
+                type: currentChartType,
+                backgroundColor: ds.backgroundColor || (ds.borderColor + '1A')
+            }));
             chartConfig = {
                 type: 'line', data: { labels: timeSlots, datasets: finalDatasets },
-                options: {
-                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
                     scales: { y: { title: { display: true, text: yAxisTitle } } },
                     plugins: { legend: { position: 'bottom' } }
                 }
@@ -489,37 +495,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const generateInsights = (todayData, comparisonData) => {
         insightsContent.innerHTML = '';
-        let insights = [];
-    
+        const insights = [];
         if (todayData) {
             const todayTotal = todayData.data[findLastSaleIndex(todayData.raw)] || 0;
-            const peakHour = getPeakHour(todayData.raw);
-            insights.push(`Today's sales peaked around <strong>${peakHour}</strong>.`);
-            
-            if (comparisonData && comparisonData.length > 0) {
+            insights.push(`Today's sales peaked around <strong>${getPeakHour(todayData.raw)}</strong>.`);
+            if (comparisonData?.[0]) {
                 const compTotal = comparisonData[0].data.at(-1);
-                if(compTotal > 0){
+                if (compTotal > 0) {
                     const percentChange = (todayTotal / compTotal - 1) * 100;
                     const verb = percentChange >= 0 ? 'up' : 'down';
                     insights.push(`Performance is <strong>${verb} ${Math.abs(percentChange).toFixed(1)}%</strong> vs '${comparisonData[0].label}'.`);
                 }
             }
-    
             const morningSales = todayData.raw.slice(0, 14).reduce((a, b) => a + b, 0);
             const afternoonSales = todayData.raw.slice(14).reduce((a, b) => a + b, 0);
-            if(morningSales + afternoonSales > 0){
+            if (morningSales + afternoonSales > 0) {
                 const split = (morningSales / (morningSales + afternoonSales) * 100).toFixed(0);
                 insights.push(`The morning session drove <strong>${split}%</strong> of today's revenue.`);
             }
         } else {
-             insights.push(`Load today's data to generate live insights.`);
+            insights.push(`Load today's data to generate live insights.`);
         }
-        
         if (historicalData.length > 0) {
             const historicalAvg = historicalData.reduce((sum, day) => sum + day.totalSales, 0) / historicalData.length;
             insights.push(`The average daily total from your dataset is <strong>£${historicalAvg.toFixed(2)}</strong>.`);
         }
-    
         if (insights.length > 0) {
             insights.forEach(insight => {
                 const p = document.createElement('p');
@@ -538,25 +538,22 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboardTitleText.textContent = `Live Sales Performance for ${selectedDate.toLocaleDateString('en-GB')}`;
 
         if (!todayData || !todayData.data.length) {
-            kpiContainer.innerHTML = '<p class="no-data-text">No data for KPIs.</p>';
-            return;
+            kpiContainer.innerHTML = '<p class="no-data-text">No data for KPIs.</p>'; return;
         }
 
         const lastSaleIndex = findLastSaleIndex(todayData.raw);
         const todayTotal = todayData.data[lastSaleIndex] || 0;
-        let comparisonTotal = null;
         let change = null;
         let comparisonLabel = 'vs. N/A';
 
-        if (comparisonData && comparisonData.length > 0) {
-            const firstComparison = comparisonData[0];
-            comparisonTotal = firstComparison.data[lastSaleIndex] || 0;
+        if (comparisonData?.[0]) {
+            const comp = comparisonData[0];
+            const comparisonTotal = comp.data[lastSaleIndex] || 0;
             if (comparisonTotal > 0) change = ((todayTotal - comparisonTotal) / comparisonTotal) * 100;
-            comparisonLabel = `vs. ${firstComparison.label}`;
+            comparisonLabel = `vs. ${comp.label}`;
         }
 
         const projectedSales = calculateProjectedSales(todayData.raw);
-
         const kpis = [
             { hero: true, title: "Today's Total Sales", value: `£${todayTotal.toFixed(2)}`, change: change, label: comparisonLabel },
             { title: "Projected Sales", value: `~ £${projectedSales.toFixed(2)}`, label: 'based on current run-rate' },
@@ -568,20 +565,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'kpi-card';
             if (kpi.hero) card.classList.add('hero');
-            
             let changeHtml = '';
             if (kpi.change !== null && isFinite(kpi.change)) {
                 const changeClass = kpi.change >= 0 ? 'positive' : 'negative';
-                const sign = kpi.change >= 0 ? '+' : '';
-                changeHtml = `<p class="kpi-change ${changeClass}">${sign}${kpi.change.toFixed(1)}%</p>`;
+                changeHtml = `<p class="kpi-change ${changeClass}">${kpi.change >= 0 ? '+' : ''}${kpi.change.toFixed(1)}%</p>`;
             }
-             card.innerHTML = `
-                <h4>${kpi.title}</h4>
-                <p class="kpi-value">${kpi.value}</p>
-                <div class="kpi-footer">
-                    ${changeHtml}
-                    <p class="kpi-label">${kpi.label}</p>
-                </div>`;
+             card.innerHTML = `<h4>${kpi.title}</h4><p class="kpi-value">${kpi.value}</p><div class="kpi-footer">${changeHtml}<p class="kpi-label">${kpi.label}</p></div>`;
             kpiContainer.appendChild(card);
         });
     };
@@ -589,104 +578,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const calculateProjectedSales = (rawSales) => {
         const lastSaleIndex = findLastSaleIndex(rawSales);
         if (lastSaleIndex === -1) return 0;
-        
         const intervalsPassed = lastSaleIndex + 1;
         const totalSoFar = rawSales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
-        const rate = totalSoFar / intervalsPassed;
-        
-        return rate * timeSlots.length;
+        return (totalSoFar / intervalsPassed) * timeSlots.length;
     };
-
 
     const getPeakHour = (salesArray) => {
         if (!salesArray || salesArray.length === 0) return 'N/A';
         const maxSales = Math.max(...salesArray);
-        if (maxSales === 0) return 'N/A';
-        return timeSlots[salesArray.indexOf(maxSales)];
-    };
-    
-    const parseItemizedSalesData = (pastedString) => {
-        if (!pastedString || typeof pastedString !== "string") return null;
-
-        const transactionChunks = pastedString.split(/EFT REF \d+/);
-        const transactions = [];
-        const timeRegex = /(\d{2}\/\d{2}\/\d{4})\s(\d{2}:\d{2}:\d{2})/;
-
-        for (const chunk of transactionChunks) {
-            const lines = chunk.split('\n');
-            if (chunk.includes("Wastage")) continue;
-
-            let timestamp = null;
-            let totalValue = 0;
-
-            const timeMatch = chunk.match(timeRegex);
-            if (timeMatch) {
-                const [_, datePart, timePart] = timeMatch;
-                const [day, month, year] = datePart.split('/');
-                timestamp = new Date(`${year}-${month}-${day}T${timePart}`);
-            } else {
-                continue;
-            }
-
-            const cardLine = lines.find(line => line.trim().startsWith("Card"));
-            if (cardLine) {
-                const cardValueMatch = cardLine.match(/£?(\d+\.\d{2})/);
-                if (cardValueMatch) {
-                    totalValue = parseFloat(cardValueMatch[1]);
-                }
-            }
-            
-            if (timestamp && totalValue > 0) {
-                transactions.push({ timestamp, total: totalValue });
-            }
-        }
-
-        if (transactions.length === 0) return null;
-
-        const aggregatedSales = Array(timeSlots.length).fill(0);
-        for (const transaction of transactions) {
-            const hour = transaction.timestamp.getHours();
-            const minute = transaction.timestamp.getMinutes();
-            const slotIndex = (hour - 5) * 2 + (minute >= 30 ? 1 : 0);
-            if (slotIndex >= 0 && slotIndex < aggregatedSales.length) {
-                aggregatedSales[slotIndex] += transaction.total;
-            }
-        }
-        return { sales: aggregatedSales, startTime: '05:00' };
-    };
-    
-    const alignSalesData = (parsedResult) => {
-        const alignedSales = Array(timeSlots.length).fill(0);
-        const startIndex = timeSlots.indexOf(parsedResult.startTime);
-        if (startIndex !== -1) {
-            parsedResult.sales.forEach((value, index) => {
-                if (startIndex + index < alignedSales.length) alignedSales[startIndex + index] = value;
-            });
-        }
-        return alignedSales;
-    };
-
-    const findLastSaleIndex = (salesArray) => {
-        for (let i = salesArray.length - 1; i >= 0; i--) {
-            if (salesArray[i] > 0) {
-                return i;
-            }
-        }
-        return -1;
-    };
-
-    const calculateCumulative = (data, limitIndex = -1) => {
-        const cumulativeData = [];
-        let sum = 0;
-        for (let i = 0; i < data.length; i++) {
-            sum += data[i];
-            if (limitIndex !== -1 && i > limitIndex) {
-                cumulativeData.push(null);
-            } else {
-                cumulativeData.push(sum);
-            }
-        }
-        return cumulativeData;
+        return maxSales === 0 ? 'N/A' : timeSlots[salesArray.indexOf(maxSales)];
     };
 
     init();
