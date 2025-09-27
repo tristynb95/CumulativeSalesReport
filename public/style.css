@@ -222,17 +222,19 @@ body {
 .button-secondary { text-align: center; cursor: pointer; }
 .button-secondary:hover { background-color: rgba(0,0,0,0.4); }
 
+/* --- MODIFICATION START --- */
 .dashboard-area {
     flex-grow: 1;
     padding: 2.5rem;
     display: grid;
-    align-content: start;
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto minmax(400px, 1fr);
+    /* This new definition fixes the layout bugs */
+    grid-template-rows: max-content max-content 1fr;
     grid-template-areas: "header" "kpis" "chart";
     gap: 2rem;
     overflow-y: auto;
 }
+/* --- MODIFICATION END --- */
 
 .dashboard-header { grid-area: header; display: flex; justify-content: space-between; align-items: center; }
 .kpi-grid { grid-area: kpis; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; }
@@ -259,7 +261,7 @@ body {
     grid-area: chart;
     display: flex;
     flex-direction: column;
-    min-height: 0; /* This allows the container to properly size within the grid */
+    min-height: 0; /* This allows the container to shrink/grow properly within the grid */
 }
 /* --- MODIFICATION END --- */
 .chart-wrapper { position: relative; flex-grow: 1; margin-top: 1rem; }
@@ -309,11 +311,14 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--primary-accent); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: #9D4BFF; }
 
+/* --- MODIFICATION START --- */
 @media (min-width: 1200px) {
     .dashboard-area {
         grid-template-columns: minmax(0, 1fr) 340px;
-        grid-template-rows: auto auto minmax(400px, 1fr);
+        /* Apply the same fix to the responsive layout */
+        grid-template-rows: max-content max-content 1fr;
         grid-template-areas: "header insights" "kpis insights" "chart insights";
     }
     .insights-container { display: block; }
 }
+/* --- MODIFICATION END --- */
