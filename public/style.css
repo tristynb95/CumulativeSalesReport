@@ -71,7 +71,7 @@ body {
     flex-direction: column;
     transition: all var(--transition-speed) ease;
     flex-shrink: 0;
-    position: relative; /* Crucial for child positioning */
+    position: relative;
     z-index: 10;
 }
 .control-panel.collapsed {
@@ -87,14 +87,13 @@ body {
 .panel-toggle-btn {
     position: absolute;
     top: 2.5rem;
-    right: 0; /* Position relative to the panel's right edge */
-    left: auto; /* Unset left property */
-    transform: translateX(50%); /* Center button on the right border line */
-    width: 30px;
-    height: 30px;
+    left: var(--panel-width);
+    transform: translateX(-12.5px); /* Center the semi-circle on the line */
+    height: 50px; /* Larger height */
+    width: 25px;  /* Width is half of height */
     background: var(--primary-accent);
     border: none;
-    border-radius: 50%;
+    border-radius: 25px 0 0 25px; /* Semi-circle with curve on the left */
     color: white;
     cursor: pointer;
     display: grid;
@@ -105,11 +104,17 @@ body {
     padding: 0;
 }
 
-/* No longer need special rules for the collapsed state, so they have been removed. */
-/* The icon rotation is now handled entirely by the JS class swapping. */
+/* This rule styles the button when the panel is collapsed */
+.control-panel.collapsed + .panel-toggle-btn {
+    left: 0;
+    transform: translateX(0); /* Flush with the screen edge */
+    border-radius: 0 25px 25px 0; /* Flip the semi-circle */
+    box-shadow: 5px 0 15px -5px var(--primary-accent);
+}
 
 .panel-toggle-btn i {
     transition: transform var(--transition-speed) ease;
+    font-size: 1.2rem; /* Make arrow slightly larger */
 }
 /* --- MODIFICATION END --- */
 
@@ -129,14 +134,14 @@ body {
 }
 
 /* --- Step Sections & Spacing --- */
-.steps-container { display: flex; flex-direction: column; gap: 2.5rem; margin-top: 1rem; } /* Added margin-top */
+.steps-container { display: flex; flex-direction: column; gap: 2.5rem; }
 .step-section {
     background: rgba(0, 0, 0, 0.1);
     border: 1px solid var(--glass-border);
     border-radius: var(--border-radius);
     padding: 1.5rem;
     transition: opacity var(--transition-speed);
-    overflow: hidden; /* Prevent content overflow during collapse */
+    overflow: hidden;
 }
 .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
 .step-circle { width: 30px; height: 30px; border-radius: 50%; background: var(--primary-accent); color: white; display: grid; place-items: center; font-weight: bold; flex-shrink: 0; }
