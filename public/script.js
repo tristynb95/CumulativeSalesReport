@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // PASTE YOUR FIREBASE CONFIG OBJECT HERE
     const firebaseConfig = {
         apiKey: "AIzaSyADonW627WBvOI0VBKUT2NNsx3xs3TTpu4",
-        authDomain: "cumulativesalesreport.firebaseapp.com",
+        authDomain: "cumulutivesalesreport.firebaseapp.com",
         projectId: "cumulativesalesreport",
         storageBucket: "cumulativesalesreport.firebasestorage.app",
         messagingSenderId: "610993633409",
@@ -75,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
             userInfo.classList.remove('hidden');
             init();
         } else {
-            // If no user, redirect to login page
             window.location.href = '/login.html';
         }
     });
@@ -93,7 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentUser) return;
         updateFileStatus("Loading historical data from database...", false);
         
-        // Fetch data from the user-specific collection
         db.collection("users").doc(currentUser.uid).collection("dailySales").orderBy("date", "desc").get()
           .then((querySnapshot) => {
               historicalData = [];
@@ -102,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   const savedFileName = localStorage.getItem('savedFileName');
                   updateUIWithLoadedData(savedFileName || 'Database');
                   updateFileStatus(`${historicalData.length} records loaded from database.`);
+                  handleUpdateChart(); 
               } else {
                   updateFileStatus("No historical data found. Upload a file to start.", false);
               }
@@ -116,7 +115,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!file || !currentUser) return;
         updateFileStatus(`Uploading and processing ${file.name}...`, false);
         
-        // Get the user's ID token for authentication
         const token = await currentUser.getIdToken();
 
         const reader = new FileReader();
@@ -262,54 +260,42 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- DATA PARSING & PROCESSING --- //
-    const parseRealTimeJournal = (pastedString) => {
+    
+    /**
+     * Replaces the old complex parser with a simple, robust one for the 
+     * "Time Zone Totals Report" format.
+     * @param {string} pastedString The raw text pasted by the user.
+     * @returns {{sales: number[]}|null} An object with the sales array or null.
+     */
+    const parseTimeZoneReport = (pastedString) => {
         if (!pastedString || typeof pastedString !== "string") return null;
-        const allTransactions = [];
+
+        const aggregatedSales = Array(timeSlots.length).fill(0);
         const lines = pastedString.split('\n');
-        const columnBoundaries = [
-            { name: 'POS 1', start: 0, end: 46 }, { name: 'POS 2', start: 46, end: 89 },
-            { name: 'POS 3', start: 89, end: 131 }, { name: 'POS 81', start: 131, end: 200 }
-        ];
-        const columnTexts = columnBoundaries.map(() => []);
+
+        // Regex to find lines with time slots and capture the start time and the last number (net total).
+        const lineRegex = /^(\d{2}:\d{2})\s*-\s*\d{2}:\d{2}.*?\s([\d,]+\.\d{2})\s*$/;
+
         for (const line of lines) {
-            columnBoundaries.forEach((col, index) => {
-                const lineSlice = line.substring(col.start, col.end).trim();
-                if (lineSlice) columnTexts[index].push(lineSlice);
-            });
-        }
-        const timeRegex = /(\d{2}\/\d{2}\/\d{4})\s(\d{2}:\d{2}:\d{2})/;
-        for (const colTextArray of columnTexts) {
-            const fullText = colTextArray.join('\n');
-            const transactionChunks = fullText.split(/Eft Ref \d+/);
-            for (const chunk of transactionChunks) {
-                if (chunk.includes("Wastage")) continue;
-                const timeMatch = chunk.match(timeRegex);
-                if (!timeMatch) continue;
-                const [_, datePart, timePart] = timeMatch;
-                const [day, month, year] = datePart.split('/');
-                const timestamp = new Date(`${year}-${month}-${day}T${timePart}`);
-                const cardLine = chunk.split('\n').find(line => line.trim().startsWith("Card"));
-                if (cardLine) {
-                    const cardValueMatch = cardLine.match(/£?(\d+\.\d{2})/);
-                    if (cardValueMatch) {
-                        const totalValue = parseFloat(cardValueMatch[1]);
-                        if (totalValue > 0) allTransactions.push({ timestamp, total: totalValue });
-                    }
+            const match = line.trim().match(lineRegex);
+            if (match) {
+                const startTime = match[1]; // e.g., "07:00"
+                const netSales = parseFloat(match[2].replace(/,/g, '')); // e.g., "47.04"
+                
+                const slotIndex = timeSlots.indexOf(startTime);
+                if (slotIndex !== -1) {
+                    aggregatedSales[slotIndex] = netSales;
                 }
             }
         }
-        if (allTransactions.length === 0) return null;
-        const aggregatedSales = Array(timeSlots.length).fill(0);
-        for (const transaction of allTransactions) {
-            const hour = transaction.timestamp.getHours();
-            const minute = transaction.timestamp.getMinutes();
-            const slotIndex = (hour - 5) * 2 + (minute >= 30 ? 1 : 0);
-            if (slotIndex >= 0 && slotIndex < aggregatedSales.length) {
-                aggregatedSales[slotIndex] += transaction.total;
-            }
-        }
+        
+        // Check if any sales were actually parsed
+        const totalParsedSales = aggregatedSales.reduce((a, b) => a + b, 0);
+        if (totalParsedSales === 0) return null;
+
         return { sales: aggregatedSales };
     };
+
 
     const findLastSaleIndex = (salesArray) => {
         for (let i = salesArray.length - 1; i >= 0; i--) if (salesArray[i] > 0) return i;
@@ -330,7 +316,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let todayDataset = null;
 
         if (todaysSalesInput.value.trim() !== '') {
-            const parsedResult = parseRealTimeJournal(todaysSalesInput.value);
+            // UPDATED: Call the new parser
+            const parsedResult = parseTimeZoneReport(todaysSalesInput.value);
             if (!parsedResult) {
                 chartError.textContent = "Could not parse today's sales data. Check the format."; return;
             }
@@ -351,7 +338,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (datasets.length === 0 && currentChartType !== 'heatmap') {
-            chartError.textContent = "No data available to generate chart."; return;
+            chartError.textContent = "No data available to generate chart. Please upload a file."; 
+            return;
         }
 
         renderChart(datasets);
