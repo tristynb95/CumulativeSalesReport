@@ -128,12 +128,12 @@ exports.processSalesData = functions.https.onRequest(async (req, res) => {
       // Fetch the newly committed data to return it to the client
       const snapshot = await db.collection("users").doc(req.user.uid)
           .collection("dailySales").orderBy("date", "desc").get();
-      
-      const processedData = snapshot.docs.map(doc => doc.data());
+
+      const processedData = snapshot.docs.map((doc) => doc.data());
 
       const message =
         `Successfully processed and saved ${validRecords} records.`;
-      return res.status(200).send({ message, processedData });
+      return res.status(200).send({message, processedData});
     } catch (error) {
       functions.logger.error("Error processing file:", error);
       return res.status(500).send({error: error.message});
