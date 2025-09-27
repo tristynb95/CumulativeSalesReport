@@ -222,19 +222,16 @@ body {
 .button-secondary { text-align: center; cursor: pointer; }
 .button-secondary:hover { background-color: rgba(0,0,0,0.4); }
 
-/* --- MODIFICATION START --- */
 .dashboard-area {
     flex-grow: 1;
     padding: 2.5rem;
     display: grid;
     grid-template-columns: 1fr;
-    /* This new definition fixes the layout bugs */
     grid-template-rows: max-content max-content 1fr;
     grid-template-areas: "header" "kpis" "chart";
     gap: 2rem;
     overflow-y: auto;
 }
-/* --- MODIFICATION END --- */
 
 .dashboard-header { grid-area: header; display: flex; justify-content: space-between; align-items: center; }
 .kpi-grid { grid-area: kpis; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; }
@@ -256,14 +253,12 @@ body {
 .kpi-change.negative { color: var(--error-color); }
 .kpi-label { color: var(--text-secondary); text-align: right; }
 
-/* --- MODIFICATION START --- */
 .chart-container {
     grid-area: chart;
     display: flex;
     flex-direction: column;
-    min-height: 0; /* This allows the container to shrink/grow properly within the grid */
+    min-height: 0;
 }
-/* --- MODIFICATION END --- */
 .chart-wrapper { position: relative; flex-grow: 1; margin-top: 1rem; }
 .placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; color: var(--text-secondary); }
 .placeholder-icon { font-size: 4rem; color: var(--primary-accent); opacity: 0.5; margin-bottom: 1rem; }
@@ -315,10 +310,32 @@ body {
 @media (min-width: 1200px) {
     .dashboard-area {
         grid-template-columns: minmax(0, 1fr) 340px;
-        /* Apply the same fix to the responsive layout */
-        grid-template-rows: max-content max-content 1fr;
-        grid-template-areas: "header insights" "kpis insights" "chart insights";
+        grid-template-rows: max-content 1fr;
+        grid-template-areas:
+            "header header"
+            "main-content insights";
     }
-    .insights-container { display: block; }
+
+    /* Create a new wrapper to hold the left-column content */
+    .dashboard-main-content {
+        grid-area: main-content;
+        display: grid;
+        grid-template-rows: max-content 1fr; /* kpis take their own height, chart takes the rest */
+        gap: 2rem;
+        min-height: 0; /* Important for grid children */
+    }
+
+    .kpi-grid {
+        grid-row: 1; /* Position kpis in the first row of the main content area */
+    }
+    .chart-container {
+        grid-row: 2; /* Position chart in the second row */
+    }
+
+    .insights-container {
+        grid-area: insights;
+        display: block;
+    }
 }
 /* --- MODIFICATION END --- */
+
