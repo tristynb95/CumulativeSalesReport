@@ -300,7 +300,9 @@ body {
 }
 .chart-wrapper { 
     position: relative; 
-    flex-grow: 1;
+    height: 100%; /* Add this to make it fill its parent */
+    min-height: 400px; /* Add a fallback minimum height */
+    /* flex-grow: 1; <-- This line is removed */
 }
 .placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; color: var(--text-secondary); }
 .placeholder-icon { font-size: 4rem; color: var(--primary-accent); opacity: 0.5; margin-bottom: 1rem; }
