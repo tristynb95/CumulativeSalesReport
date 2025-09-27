@@ -44,17 +44,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const panelToggleBtn = document.getElementById('panel-toggle-btn');
     const controlPanel = document.getElementById('control-panel');
 
-
     // --- INITIALIZATION --- //
     const init = () => {
         salesDateInput.valueAsDate = new Date();
         populateComparisonModes();
         setupEventListeners();
         setupChartDefaults();
-        loadFromLocalStorage(); // MODIFICATION: Load saved data on startup
+        loadFromLocalStorage();
     };
 
-    // --- MODIFICATION START: Local Storage Functions --- //
     const loadFromLocalStorage = () => {
         const savedData = localStorage.getItem('historicalData');
         const savedFileName = localStorage.getItem('savedFileName');
@@ -90,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearLocalStorage = () => {
         localStorage.removeItem('historicalData');
         localStorage.removeItem('savedFileName');
-        localStorage.removeItem('todaysSalesData'); // Also clear today's sales on file delete
+        localStorage.removeItem('todaysSalesData');
     };
     
     const updateUIWithLoadedData = (fileName) => {
@@ -108,8 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAdditionalControls(selectedMode);
         }
     };
-    // --- MODIFICATION END --- //
-
 
     const setupChartDefaults = () => {
         Chart.defaults.color = '#A9A9A9';
@@ -136,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fullscreenBtn.addEventListener('click', () => chartPanel.requestFullscreen());
         chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
         panelToggleBtn.addEventListener('click', toggleControlPanel);
-        todaysSalesInput.addEventListener('input', saveTodaysSales); // MODIFICATION: Save today's sales on input
+        todaysSalesInput.addEventListener('input', saveTodaysSales);
         setupDragAndDrop();
     };
     
@@ -167,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleDeleteFile = () => {
         historicalData = [];
         excelFileInput.value = '';
-        todaysSalesInput.value = ''; // Also clear the text area
+        todaysSalesInput.value = '';
         fileInfoContainer.classList.add('hidden');
         dropZone.style.display = 'block';
         analysisPanel.classList.add('disabled');
@@ -180,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         kpiContainer.innerHTML = '';
         insightsContent.innerHTML = '<p class="no-data-text">Generate a chart to see automated insights here.</p>';
-        clearLocalStorage(); // MODIFICATION: Clear saved data
+        clearLocalStorage();
     };
 
     const toggleControlPanel = () => {
@@ -229,9 +225,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             const alignedSales = alignSalesData(parsedResult);
+            // MODIFICATION: Find where today's data ends
+            const lastSaleIndex = findLastSaleIndex(alignedSales);
+
             todayDataset = {
                 label: `Today's Sales`,
-                data: calculateCumulative(alignedSales),
+                // MODIFICATION: Calculate cumulative data only up to the last sale
+                data: calculateCumulative(alignedSales, lastSaleIndex),
                 raw: alignedSales,
                 borderColor: '#FF69B4',
                 borderWidth: 3,
@@ -246,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         let comparisonData = null;
         if (selectedMode && historicalData.length > 0) {
+            // MODIFICATION: Pass the full comparison data to be calculated fully
             comparisonData = getComparisonData(selectedMode);
             if (comparisonData) datasets.push(...comparisonData);
         }
@@ -315,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             historicalData = processedData;
             updateUIWithLoadedData(fileName);
-            saveHistoricalData(fileName); // MODIFICATION: Save data on successful upload
+            saveHistoricalData(fileName);
 
         } catch (error) {
             updateFileStatus(error.message, true);
@@ -385,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const createDataset = (dayData, index, options = {}) => ({
             label: options.label || new Date(dayData.date).toLocaleDateString('en-GB', { timeZone: 'UTC' }),
-            data: calculateCumulative(dayData.sales),
+            data: calculateCumulative(dayData.sales), // No limit for comparison data
             raw: dayData.sales,
             borderColor: lineColors[index % lineColors.length],
             borderWidth: 2,
@@ -502,11 +503,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let insights = [];
     
         if (todayData) {
+            const todayTotal = todayData.data[findLastSaleIndex(todayData.raw)] || 0;
             const peakHour = getPeakHour(todayData.raw);
             insights.push(`Today's sales peaked around <strong>${peakHour}</strong>.`);
             
             if (comparisonData && comparisonData.length > 0) {
-                const todayTotal = todayData.data.at(-1);
                 const compTotal = comparisonData[0].data.at(-1);
                 if(compTotal > 0){
                     const percentChange = (todayTotal / compTotal - 1) * 100;
@@ -549,14 +550,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const todayTotal = todayData.data.at(-1);
+        const lastSaleIndex = findLastSaleIndex(todayData.raw);
+        const todayTotal = todayData.data[lastSaleIndex] || 0;
         let comparisonTotal = null;
         let change = null;
         let comparisonLabel = 'vs. N/A';
 
         if (comparisonData && comparisonData.length > 0) {
             const firstComparison = comparisonData[0];
-            comparisonTotal = firstComparison.data.at(-1);
+            // Compare today's current total to the comparison's total at the same time of day
+            comparisonTotal = firstComparison.data[lastSaleIndex] || 0;
             if (comparisonTotal > 0) change = ((todayTotal - comparisonTotal) / comparisonTotal) * 100;
             comparisonLabel = `vs. ${firstComparison.label}`;
         }
@@ -621,8 +624,32 @@ document.addEventListener('DOMContentLoaded', () => {
         return alignedSales;
     };
 
-    const calculateCumulative = data => data.reduce((acc, val) => [...acc, (acc.at(-1) || 0) + val], []);
+    // --- MODIFICATION START: Smarter Chart Logic --- //
+    const findLastSaleIndex = (salesArray) => {
+        for (let i = salesArray.length - 1; i >= 0; i--) {
+            if (salesArray[i] > 0) {
+                return i;
+            }
+        }
+        return -1; // No sales found
+    };
+
+    const calculateCumulative = (data, limitIndex = -1) => {
+        const cumulativeData = [];
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+            sum += data[i];
+            if (limitIndex !== -1 && i > limitIndex) {
+                cumulativeData.push(null); // Stop drawing the line
+            } else {
+                cumulativeData.push(sum);
+            }
+        }
+        return cumulativeData;
+    };
+    // --- MODIFICATION END --- //
 
     // --- KICK-OFF --- //
     init();
 });
+
