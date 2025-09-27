@@ -368,7 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const month = parseInt(dateMatch[2], 10) - 1;
                 const year = parseInt(dateMatch[3], 10);
                 
-                // *** FIX: Use Date.UTC to avoid timezone issues ***
                 const tempDate = new Date(Date.UTC(year, month, day));
                 
                 if (tempDate.getUTCFullYear() === year && tempDate.getUTCMonth() === month && tempDate.getUTCDate() === day) {
@@ -455,8 +454,11 @@ document.addEventListener('DOMContentLoaded', () => {
         additionalControlsContainer.innerHTML = '';
         if (mode === 'average') {
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-            const nativeSelect = `<select id="day-of-week" class="form-input-hidden">${days.map(d => `<option value="${d}">${d}</option>`).join('')}</select>`;
-            const customOptions = days.map((d, i) => `<span class="custom-option ${i === 0 ? 'selected' : ''}" data-value="${d}">${d}</span>`).join('');
+            const currentDate = salesDateInput.valueAsDate || new Date();
+            const currentDay = currentDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+
+            const nativeSelect = `<select id="day-of-week" class="form-input-hidden">${days.map(d => `<option value="${d}" ${d === currentDay ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
+            const customOptions = days.map(d => `<span class="custom-option ${d === currentDay ? 'selected' : ''}" data-value="${d}">${d}</span>`).join('');
 
             const controlHTML = `
                 <div class="control-group">
@@ -465,7 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${nativeSelect}
                         <div class="custom-select">
                             <div class="custom-select-trigger">
-                                <span>${days[0]}</span>
+                                <span>${currentDay}</span>
                                 <div class="arrow"></div>
                             </div>
                             <div class="custom-options">${customOptions}</div>
