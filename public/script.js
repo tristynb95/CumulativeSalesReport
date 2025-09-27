@@ -551,7 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { hero: true, title: "Today's Total Sales", value: `£${todayTotal.toFixed(2)}`, change: change, label: comparisonLabel },
             { title: "Projected Sales", value: `~ £${projectedSales.toFixed(2)}`, label: 'based on current run-rate' },
             { title: "Avg. Transaction", value: `£${(todayTotal / (todayData.raw.filter(v => v > 0).length || 1)).toFixed(2)}`, label: 'per active half-hour' },
-            { title: "Peak Hour", value: getPeakHour(todayData.raw), label: 'highest sales interval' }
+            { title: "Peak 2 Hours", value: getPeak2Hours(todayData.raw), label: 'highest sales interval' }
         ];
 
         kpis.forEach(kpi => {
@@ -571,38 +571,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const calculateProjectedSales = (rawSales) => {
         const lastSaleIndex = findLastSaleIndex(rawSales);
         if (lastSaleIndex === -1) return 0;
-
         const intervalsPassed = lastSaleIndex + 1;
         const totalSoFar = rawSales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
-        const currentRunRate = (totalSoFar / intervalsPassed) * timeSlots.length;
+        return (totalSoFar / intervalsPassed) * timeSlots.length;
+    };
 
-        const salesDate = salesDateInput.valueAsDate || new Date();
-        const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
-
-        const relevantHistoricalDays = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
-
-        if (relevantHistoricalDays.length < 3) { // Not enough data for a good projection
-            return currentRunRate;
+    const getPeak2Hours = (salesArray) => {
+        if (!salesArray || salesArray.length < 4) return 'N/A';
+    
+        let maxSum = 0;
+        let peakStartIndex = -1;
+    
+        // A 2-hour window consists of 4 half-hour slots
+        for (let i = 0; i <= salesArray.length - 4; i++) {
+            const currentSum = salesArray.slice(i, i + 4).reduce((a, b) => a + b, 0);
+            if (currentSum > maxSum) {
+                maxSum = currentSum;
+                peakStartIndex = i;
+            }
         }
-
-        // Calculate the average historical sales pattern for this day of the week
-        const avgHistoricalSales = timeSlots.map((_, i) =>
-            relevantHistoricalDays.reduce((sum, d) => sum + d.sales[i], 0) / relevantHistoricalDays.length
-        );
-
-        // Calculate the historical run-rate up to the current time
-        const historicalTotalSoFar = avgHistoricalSales.slice(0, intervalsPassed).reduce((a,b) => a + b, 0);
-        const historicalRunRateForInterval = (totalSoFar / historicalTotalSoFar);
-
-        // If today's performance is significantly different from the historical average, it might be an anomaly.
-        // We can use a credibility factor to blend the two run rates.
-        const credibility = Math.min(1, intervalsPassed / (timeSlots.length / 2)); // Give more weight to historical data early in the day
-
-        const blendedMultiplier = (historicalRunRateForInterval * credibility) + (1-credibility);
-
-        const historicalTotal = avgHistoricalSales.reduce((a,b) => a+b, 0);
-
-        return historicalTotal * blendedMultiplier;
+    
+        if (peakStartIndex === -1 || maxSum === 0) return 'N/A';
+    
+        const startTime = timeSlots[peakStartIndex];
+        const endTimeSlotIndex = peakStartIndex + 3;
+        const endTime = timeSlots[endTimeSlotIndex];
+    
+        // To get the end time of the slot, we need to add 30 minutes to the start time
+        const [endHour, endMinute] = endTime.split(':').map(Number);
+        const endDate = new Date();
+        endDate.setHours(endHour, endMinute + 30, 0, 0);
+    
+        const finalEndHour = String(endDate.getHours()).padStart(2, '0');
+        const finalEndMinute = String(endDate.getMinutes()).padStart(2, '0');
+    
+        return `${startTime} - ${finalEndHour}:${finalEndMinute}`;
     };
 
     const getPeakHour = (salesArray) => {
