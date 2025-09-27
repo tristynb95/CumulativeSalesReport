@@ -24,20 +24,35 @@ const parseDDMMYYYY = (dateString) => {
 };
 
 /**
- * Processes an uploaded sales data file (XLSX) via an HTTP request.
+ * Processes an uploaded sales data file (XLSX or CSV) via an HTTP request.
  */
 exports.processSalesData = functions.https.onRequest((req, res) => {
   cors(req, res, () => {
     if (req.method !== "POST") {
       return res.status(405).send("Method Not Allowed");
     }
-    if (!req.body.fileContents) {
-      return res.status(400).send("Bad Request: Missing file contents.");
+    // MODIFICATION: Check for fileName in the request body.
+    if (!req.body.fileContents || !req.body.fileName) {
+      return res.status(400)
+        .send("Bad Request: Missing file contents or file name.");
     }
 
     try {
-      const {fileContents} = req.body;
-      const workbook = xlsx.read(fileContents, {type: "base64"});
+      const {fileContents, fileName} = req.body;
+      const fileBuffer = Buffer.from(fileContents, "base64");
+      
+      let workbook;
+
+      // MODIFICATION: Use different parsing strategies based on file extension.
+      if (fileName.toLowerCase().endsWith(".csv")) {
+        // For CSVs, convert the buffer to a string for robust parsing.
+        const csvData = fileBuffer.toString("utf8");
+        workbook = xlsx.read(csvData, {type: "string"});
+      } else {
+        // For XLSX, parse from the buffer and interpret date cells correctly.
+        workbook = xlsx.read(fileBuffer, {type: "buffer", cellDates: true});
+      }
+
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = xlsx.utils.sheet_to_json(sheet, {
         header: 1,
@@ -61,6 +76,7 @@ exports.processSalesData = functions.https.onRequest((req, res) => {
 
       json.slice(1).forEach((row) => {
         if (!row[0]) return;
+        // The parseDDMMYYYY function is robust enough to handle JS dates or strings
         const date = parseDDMMYYYY(row[0]);
         if (isNaN(date.getTime())) return;
 

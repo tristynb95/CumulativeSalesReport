@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fetch(functionUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileContents }),
+                body: JSON.stringify({ fileContents, fileName: file.name }),
             })
             .then(response => {
                 if (!response.ok) return response.json().then(err => { throw new Error(err.error || 'Processing failed') });
