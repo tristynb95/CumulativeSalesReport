@@ -554,3 +554,36 @@ body {
     gap: 0.5rem;
     color: var(--text-secondary);
 }
+
+/* --- SELECTED DATES BUBBLES --- */
+.selected-dates-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.selected-date-item {
+    background-color: var(--secondary-accent);
+    color: var(--base-bg);
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* --- CLEAR SELECTION BUTTON --- */
+.clear-selection-btn {
+    background-color: transparent;
+    border: 1px solid var(--error-color);
+    color: var(--error-color);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    margin-top: 1rem;
+}
+
+.clear-selection-btn:hover {
+    background-color: rgba(255, 105, 180, 0.1);
+}

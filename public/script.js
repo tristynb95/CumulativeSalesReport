@@ -478,7 +478,6 @@ document.addEventListener('DOMContentLoaded', () => {
         generateInsights(todayDataset, comparisonData);
     };
     
-    // MODIFICATION: Changed the order of element creation
     const renderAdditionalControls = (mode) => {
         additionalControlsContainer.innerHTML = '';
         selectedDatesDisplay.classList.add('hidden'); 
@@ -537,22 +536,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const div = document.createElement('div');
             div.className = 'control-group';
             div.appendChild(createCheckboxes(mode));
-            // The clear button will now be added after the selected dates list
             additionalControlsContainer.appendChild(div);
-            updateSelectedDatesDisplay(); // This will show/hide the list
-            
-            // Add the clear button if there are checkboxes
-            if (additionalControlsContainer.querySelector('.checkbox-container')) {
-                const clearButton = document.createElement('button');
-                clearButton.textContent = 'Clear Selection';
-                clearButton.className = 'clear-selection-btn';
-                // Append it after the selected dates display, which is outside this container
-                analysisPanel.insertBefore(clearButton, generatePanel);
-                // We need to re-query for it and attach the listener
-                clearButton.addEventListener('click', () => {
-                    confirmationModal.classList.remove('hidden');
-                });
-            }
+            updateSelectedDatesDisplay();
         }
     };
     
@@ -589,18 +574,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return div;
     };
     
-    // MODIFICATION: Reworked the updateSelectedDatesDisplay function
     const updateSelectedDatesDisplay = () => {
         const checked = Array.from(document.querySelectorAll('#additional-controls input:checked'));
+        const clearButton = document.getElementById('clear-selection-btn');
         if (checked.length > 0) {
             selectedDatesList.innerHTML = checked.map(checkbox => {
                 const dayData = historicalData.find(d => d.id === checkbox.value);
-                const formattedDate = new Date(dayData.date).toLocaleDateString('en-GB', { timeZone: 'UTC' });
+                const date = new Date(dayData.date);
+                const formattedDate = date.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: '2-digit', year: '2-digit' });
                 return `<span class="selected-date-item">${formattedDate}</span>`;
             }).join('');
             selectedDatesDisplay.classList.remove('hidden');
+            clearButton.classList.remove('hidden');
         } else {
             selectedDatesDisplay.classList.add('hidden');
+            clearButton.classList.add('hidden');
         }
     };
 
