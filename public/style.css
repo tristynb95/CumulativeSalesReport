@@ -533,6 +533,8 @@ body {
 
 /* --- CLEAR SELECTION BUTTON --- */
 .clear-selection-btn {
+    display: block;
+    width: 100%;
     background-color: transparent;
     border: 1px solid var(--error-color);
     color: var(--error-color);

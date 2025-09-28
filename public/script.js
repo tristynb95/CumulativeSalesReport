@@ -262,6 +262,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         additionalControlsContainer.addEventListener('click', handleCustomSelect);
+
+        document.getElementById('clear-selection-btn').addEventListener('click', () => {
+            confirmationModal.classList.remove('hidden');
+        });
         
         confirmClearBtn.addEventListener('click', () => {
             const checkboxes = additionalControlsContainer.querySelectorAll('input[type="checkbox"]');
