@@ -21,8 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const comparisonModes = {
         average: 'Day of Week (Average)',
         top_weekday: 'Day of Week (Record High)',
-        lowest_by_weekday: 'Day of Week (Record Low)',
-        worst_days: 'Record Sales (Lowest)',
+        lowest_by_weekday: 'Record Sales (Lowest)',
+        worst_days: 'Day of Week (Record Low)',
         peak_hour: 'Lowest Sales',
         specific: 'Specific Day(s)',
         same_day_last_week: 'Same Day Last Week',
@@ -459,23 +459,49 @@ document.addEventListener('DOMContentLoaded', () => {
         additionalControlsContainer.innerHTML = '';
         if (mode === 'average') {
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const dateRanges = {
+                'all': 'All',
+                'this-month': 'This Month',
+                'last-month': 'Last Month',
+                'last-3-months': 'Last 3 Months',
+                'last-6-months': 'Last 6 Months',
+                'last-12-months': 'Last 12 Months',
+                'this-year': 'This Year',
+                'last-year': 'Last Year'
+            };
             const currentDate = salesDateInput.valueAsDate || new Date();
             const currentDay = currentDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
 
-            const nativeSelect = `<select id="day-of-week" class="form-input-hidden">${days.map(d => `<option value="${d}" ${d === currentDay ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
-            const customOptions = days.map(d => `<span class="custom-option ${d === currentDay ? 'selected' : ''}" data-value="${d}">${d}</span>`).join('');
+            const dayOfWeekSelect = `<select id="day-of-week" class="form-input-hidden">${days.map(d => `<option value="${d}" ${d === currentDay ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
+            const dayOfWeekOptions = days.map(d => `<span class="custom-option ${d === currentDay ? 'selected' : ''}" data-value="${d}">${d}</span>`).join('');
+            
+            const dateRangeSelect = `<select id="date-range" class="form-input-hidden">${Object.entries(dateRanges).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}</select>`;
+            const dateRangeOptions = Object.entries(dateRanges).map(([value, label], index) => `<span class="custom-option ${index === 0 ? 'selected' : ''}" data-value="${value}">${label}</span>`).join('');
 
             const controlHTML = `
                 <div class="control-group">
                     <label>Day of the Week</label>
                     <div class="custom-select-wrapper">
-                        ${nativeSelect}
+                        ${dayOfWeekSelect}
                         <div class="custom-select">
                             <div class="custom-select-trigger">
                                 <span>${currentDay}</span>
                                 <div class="arrow"></div>
                             </div>
-                            <div class="custom-options">${customOptions}</div>
+                            <div class="custom-options">${dayOfWeekOptions}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Date Range</label>
+                    <div class="custom-select-wrapper">
+                        ${dateRangeSelect}
+                        <div class="custom-select">
+                            <div class="custom-select-trigger">
+                                <span>All</span>
+                                <div class="arrow"></div>
+                            </div>
+                            <div class="custom-options">${dateRangeOptions}</div>
                         </div>
                     </div>
                 </div>
@@ -539,7 +565,42 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (mode) {
             case 'average': {
                 const dayOfWeek = document.getElementById('day-of-week').value;
-                const relevant = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
+                const dateRange = document.getElementById('date-range').value;
+                const now = new Date();
+                const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+
+                const filteredData = historicalData.filter(d => {
+                    const recordDate = new Date(d.date);
+                    switch (dateRange) {
+                        case 'this-month':
+                            return recordDate.getUTCMonth() === today.getUTCMonth() && recordDate.getUTCFullYear() === today.getUTCFullYear();
+                        case 'last-month':
+                            const lastMonth = new Date(today);
+                            lastMonth.setUTCMonth(lastMonth.getUTCMonth() - 1);
+                            return recordDate.getUTCMonth() === lastMonth.getUTCMonth() && recordDate.getUTCFullYear() === lastMonth.getUTCFullYear();
+                        case 'last-3-months':
+                            const threeMonthsAgo = new Date(today);
+                            threeMonthsAgo.setUTCMonth(threeMonthsAgo.getUTCMonth() - 3);
+                            return recordDate >= threeMonthsAgo;
+                        case 'last-6-months':
+                            const sixMonthsAgo = new Date(today);
+                            sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth() - 6);
+                            return recordDate >= sixMonthsAgo;
+                        case 'last-12-months':
+                             const twelveMonthsAgo = new Date(today);
+                            twelveMonthsAgo.setUTCFullYear(twelveMonthsAgo.getUTCFullYear() - 1);
+                            return recordDate >= twelveMonthsAgo;
+                        case 'this-year':
+                            return recordDate.getUTCFullYear() === today.getUTCFullYear();
+                        case 'last-year':
+                            return recordDate.getUTCFullYear() === today.getUTCFullYear() - 1;
+                        case 'all':
+                        default:
+                            return true;
+                    }
+                });
+
+                const relevant = filteredData.filter(d => d.dayOfWeek === dayOfWeek);
                 if (!relevant.length) { chartError.textContent = `No data for ${dayOfWeek}.`; return null; }
                 const avgSales = timeSlots.map((_, i) => relevant.reduce((sum, d) => sum + d.sales[i], 0) / relevant.length);
                 return [createDataset({ sales: avgSales, date: new Date() }, 0, { label: `Average ${dayOfWeek}`, borderDash: [5, 5] })];
