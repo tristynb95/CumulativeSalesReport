@@ -21,8 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const comparisonModes = {
         average: 'Day of Week (Average)',
         top_weekday: 'Day of Week (Record High)',
-        lowest_by_weekday: 'Record Sales (Lowest)',
-        worst_days: 'Day of Week (Record Low)',
+        lowest_by_weekday: 'Day of Week (Record Low)',
+        worst_days: 'Record Sales (Lowest)',
         peak_hour: 'Lowest Sales',
         specific: 'Specific Day(s)',
         same_day_last_week: 'Same Day Last Week',
