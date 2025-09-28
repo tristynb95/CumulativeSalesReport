@@ -61,10 +61,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const insightsPanel = document.getElementById('insights-panel');
     const insightsCloseBtn = document.getElementById('insights-close-btn');
     const insightsOverlay = document.getElementById('insights-overlay');
-    // MODIFICATION: Added modal elements
     const confirmationModal = document.getElementById('confirmation-modal');
     const confirmClearBtn = document.getElementById('confirm-clear-btn');
     const cancelClearBtn = document.getElementById('cancel-clear-btn');
+    // MODIFICATION: Added goal line checkbox element
+    const goalLineCheckbox = document.getElementById('goal-line-checkbox');
 
 
     // --- AUTHENTICATION LISTENER --- //
@@ -262,7 +263,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         additionalControlsContainer.addEventListener('click', handleCustomSelect);
         
-        // MODIFICATION: Added modal event listeners
         confirmClearBtn.addEventListener('click', () => {
             const checkboxes = additionalControlsContainer.querySelectorAll('input[type="checkbox"]');
             checkboxes.forEach(checkbox => checkbox.checked = false);
@@ -272,6 +272,9 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelClearBtn.addEventListener('click', () => {
             confirmationModal.classList.add('hidden');
         });
+
+        // MODIFICATION: Added event listener for goal line checkbox
+        goalLineCheckbox.addEventListener('change', handleUpdateChart);
 
         window.addEventListener('click', (e) => {
             const select = document.querySelector('.custom-select');
@@ -369,7 +372,6 @@ document.addEventListener('DOMContentLoaded', () => {
             option.classList.add('selected');
             select.classList.remove('open');
         }
-        // MODIFICATION: Show modal on clear button click
         const clearButton = e.target.closest('.clear-selection-btn');
         if (clearButton) {
             confirmationModal.classList.remove('hidden');
@@ -465,7 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (comparisonData) datasets.push(...comparisonData);
         }
 
-        if (datasets.length === 0 && currentChartType !== 'heatmap') {
+        if (datasets.length === 0) {
             chartError.textContent = "No data available to generate chart. Please upload a file."; 
             return;
         }
@@ -531,7 +533,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const div = document.createElement('div');
             div.className = 'control-group';
             div.appendChild(createCheckboxes(mode));
-            // MODIFICATION: Add the clear selection button
             const clearButton = document.createElement('button');
             clearButton.textContent = 'Clear Selection';
             clearButton.className = 'clear-selection-btn';
@@ -680,63 +681,103 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     };
     
+    // MODIFICATION: Reworked the renderChart function to support the new chart type
     const renderChart = (datasets) => {
         if (salesChart) salesChart.destroy();
         chartPlaceholder.style.display = 'none';
         const ctx = document.getElementById('salesChart').getContext('2d');
-        let chartConfig;
 
-        if (currentChartType === 'heatmap') {
-             const heatmapData = historicalData.flatMap(day => {
-                const dayIndex = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(day.dayOfWeek);
-                return day.sales.map((value, timeIndex) => ({ x: timeIndex, y: dayIndex, v: value }));
+        const todayData = datasets.find(ds => ds.label === "Today's Sales");
+        const salesDate = salesDateInput.valueAsDate || new Date();
+        const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+
+        const relevantHistoricalDays = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
+        const avgSales = timeSlots.map((_, i) => relevantHistoricalDays.reduce((sum, d) => sum + d.sales[i], 0) / (relevantHistoricalDays.length || 1));
+
+        const chartDatasets = [];
+
+        if (todayData) {
+            chartDatasets.push({
+                type: 'bar',
+                label: "Today's Half-Hourly Sales",
+                data: todayData.raw,
+                backgroundColor: todayData.raw.map(value => value >= avgSales[todayData.raw.indexOf(value)] ? 'rgba(50, 205, 50, 0.7)' : 'rgba(255, 105, 180, 0.7)'),
+                yAxisID: 'y',
             });
-            chartConfig = {
-                type: 'matrix',
-                data: { datasets: [{
-                    label: 'Sales Heatmap (£)', data: heatmapData,
-                    backgroundColor: c => `rgba(0, 191, 255, ${Math.min(0.1 + ((c.dataset.data[c.dataIndex]?.v || 0) / 150), 1)})`,
-                    borderColor: 'rgba(26, 26, 46, 0.5)', borderWidth: 1,
-                    width: ({chart}) => (chart.chartArea || {}).width / timeSlots.length - 1,
-                    height: ({chart}) => (chart.chartArea || {}).height / 7 - 1,
-                }] },
-                options: { responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        x: { type: 'category', labels: timeSlots, ticks: { autoSkip: true, maxTicksLimit: 10 }, grid: { display: false } },
-                        y: { type: 'category', labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], offset: true, grid: { display: false } }
-                    },
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { title:()=>'', label: c => `£${c.raw.v.toFixed(2)}` } } }
-                }
-            };
-        } else {
-            const yAxisTitle = currentChartType === 'bar' ? 'Sales per Interval (£)' : 'Cumulative Sales (£)';
-            const finalDatasets = datasets.map(ds => ({
-                ...ds,
-                data: currentChartType === 'bar' ? ds.raw : ds.data,
-                type: currentChartType,
-                backgroundColor: ds.backgroundColor || (ds.borderColor + '1A')
-            }));
-            chartConfig = {
-                type: 'line', data: { labels: timeSlots, datasets: finalDatasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    scales: { y: { title: { display: true, text: yAxisTitle } } },
-                    plugins: { legend: { position: 'bottom' } },
-                    layout: {
-                        padding: {
-                            top: 10,
-                            right: 20,
-                            bottom: 10,
-                            left: 10
-                        }
-                    }
-                }
-            };
+            chartDatasets.push({
+                type: 'line',
+                label: "Today's Cumulative Sales",
+                data: todayData.data,
+                borderColor: '#00BFFF',
+                backgroundColor: 'rgba(0, 191, 255, 0.1)',
+                fill: true,
+                yAxisID: 'y1',
+                tension: 0.4,
+            });
         }
+
+        if (goalLineCheckbox.checked && relevantHistoricalDays.length > 0) {
+            chartDatasets.push({
+                type: 'line',
+                label: `Average ${dayOfWeek} Sales`,
+                data: avgSales,
+                borderColor: 'rgba(255, 215, 0, 0.8)',
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false,
+                yAxisID: 'y',
+            });
+        }
+        
+        const chartConfig = {
+            data: {
+                labels: timeSlots,
+                datasets: chartDatasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Half-Hourly Sales (£)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Cumulative Sales (£)'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                },
+            },
+        };
+
         salesChart = new Chart(ctx, chartConfig);
     };
+
 
     const generateInsights = (todayData, comparisonData) => {
         insightsContent.innerHTML = '';
