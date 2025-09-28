@@ -13,7 +13,7 @@ const BATCH_SIZE = 500;
 /**
  * Parses a date input into a JavaScript Date object.
  * @param {string | number} dateInput The date string or number.
- * @return {Date} The parsed Date object.
+ * @return {Date | null} The parsed Date object or null if invalid.
  */
 const parseDDMMYYYY = (dateInput) => {
   if (!dateInput) return null;
@@ -42,33 +42,40 @@ const parseDDMMYYYY = (dateInput) => {
  */
 async function processWorksheetStream(worksheetReader, uid) {
   let header = [];
-  let timeSlots = [];
+  const timeSlots = Array.from({length: 28}, (_, i) => {
+    const hour = Math.floor(i / 2) + 5;
+    const minute = i % 2 === 0 ? "00" : "30";
+    return `${String(hour).padStart(2, "0")}:${minute}`;
+  });
+
   let batch = db.batch();
   let batchCounter = 0;
   let validRecords = 0;
+  let isFirstRow = true;
 
   for await (const row of worksheetReader) {
-    if (row.number === 1) {
+    if (isFirstRow) {
       header = row.values.map((h) => String(h || "").trim());
-      timeSlots = Array.from({length: 28}, (_, i) => {
-        const hour = Math.floor(i / 2) + 5;
-        const minute = i % 2 === 0 ? "00" : "30";
-        return `${String(hour).padStart(2, "0")}:${minute}`;
-      });
+      isFirstRow = false;
       continue;
     }
 
     const rowData = row.values;
-    if (!rowData || !rowData[1]) continue;
+    if (!rowData || rowData.length < 2) continue;
 
-    const date = parseDDMMYYYY(rowData[1]);
+    const rowObject = {};
+    header.forEach((key, i) => {
+      rowObject[key] = rowData[i];
+    });
+
+    const date = parseDDMMYYYY(Object.values(rowObject)[0]);
     if (!date) continue;
 
     const alignedSales = Array(timeSlots.length).fill(0);
-    header.slice(1).forEach((slot, index) => {
+    header.slice(1).forEach((slot) => {
       const mainIndex = timeSlots.indexOf(slot);
-      if (mainIndex !== -1) {
-        alignedSales[mainIndex] = parseFloat(rowData[index + 2]) || 0;
+      if (mainIndex !== -1 && rowObject[slot]) {
+        alignedSales[mainIndex] = parseFloat(rowObject[slot]) || 0;
       }
     });
 
@@ -112,6 +119,7 @@ async function processWorksheetStream(worksheetReader, uid) {
   return validRecords;
 }
 
+
 exports.processSalesData = onRequest(
     {timeoutSeconds: 540, memory: "1GiB"},
     (req, res) => {
@@ -120,54 +128,57 @@ exports.processSalesData = onRequest(
           return res.status(405).send("Method Not Allowed");
         }
 
-        let idToken;
+        let user;
         try {
           if (!req.headers.authorization ||
             !req.headers.authorization.startsWith("Bearer ")) {
             throw new Error("Unauthorized");
           }
-          idToken = req.headers.authorization.split("Bearer ")[1];
-          req.user = await admin.auth().verifyIdToken(idToken);
+          const idToken = req.headers.authorization.split("Bearer ")[1];
+          user = await admin.auth().verifyIdToken(idToken);
         } catch (error) {
-          functions.logger.error("Error verifying Firebase ID token:", error);
+          functions.logger.error("Auth error:", error);
           return res.status(403).send("Unauthorized");
         }
 
-        const busboyOptions = {headers: req.headers};
-        const busboy = new Busboy(busboyOptions);
+        const busboy = new Busboy({headers: req.headers});
 
         busboy.on("file", (fieldname, file, {filename}) => {
-          const workbook = new ExcelJS.stream.xlsx.WorkbookReader();
           const isCsv = filename.toLowerCase().endsWith(".csv");
 
-          const streamOptions = {entries: "emit"};
-          const stream = isCsv ? file : workbook.read(file, streamOptions);
-
-          stream.on("error", (error) => {
-            functions.logger.error("Stream processing error:", error);
-            if (!res.headersSent) {
-              res.status(500).send({error: "Error reading file stream."});
-            }
-          });
-
-          stream.on("worksheet", (worksheetReader) => {
-            processWorksheetStream(worksheetReader, req.user.uid)
-                .then((count) => res.status(200)
-                    .send({message: `Success: ${count} records.`}))
-                .catch((err) => res.status(500)
-                    .send({error: err.message}));
-          });
+          const processAndRespond = (worksheetReader) => {
+            processWorksheetStream(worksheetReader, user.uid)
+                .then((count) => {
+                  if (!res.headersSent) {
+                    const message = `Processed ${count} records.`;
+                    res.status(200).send({message});
+                  }
+                })
+                .catch((err) => {
+                  functions.logger.error("Processing error:", err);
+                  if (!res.headersSent) {
+                    res.status(500).send({error: err.message});
+                  }
+                });
+          };
 
           if (isCsv) {
-            const csvWorkbook = new ExcelJS.stream.csv.WorkbookReader();
-            const parserOptions = {header: true, delimiter: ","};
-            csvWorkbook.read(file, {parserOptions})
-                .on("worksheet", (worksheetReader) => {
-                  processWorksheetStream(worksheetReader, req.user.uid)
-                      .then((count) => res.status(200)
-                          .send({message: `Success: ${count} records.`}))
-                      .catch((err) => res.status(500)
-                          .send({error: err.message}));
+            const csvReader = new ExcelJS.stream.csv.WorkbookReader();
+            csvReader.read(file, {headers: true, delimiter: ","})
+                .on("worksheet", processAndRespond)
+                .on("error", (err) => {
+                  if (!res.headersSent) {
+                    res.status(500).send({error: err.message});
+                  }
+                });
+          } else {
+            const workbook = new ExcelJS.stream.xlsx.WorkbookReader();
+            workbook.read(file, {entries: "emit"})
+                .on("worksheet", processAndRespond)
+                .on("error", (err) => {
+                  if (!res.headersSent) {
+                    res.status(500).send({error: err.message});
+                  }
                 });
           }
         });
