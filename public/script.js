@@ -449,34 +449,68 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleUpdateChart = () => {
         chartError.textContent = '';
         let todayDataset = null;
+        let projectedDataset = null;
         isPeakHighlightVisible = false;
-
+    
         if (todaysSalesInput.value.trim() !== '') {
             const parsedResult = parseTimeZoneReport(todaysSalesInput.value);
             if (!parsedResult.sales) {
-                chartError.textContent = "Could not parse today's sales data. Check the format."; return;
+                chartError.textContent = "Could not parse today's sales data. Check the format.";
+                return;
             }
             const lastSaleIndex = findLastSaleIndex(parsedResult.sales);
+            const cumulativeSales = calculateCumulative(parsedResult.sales, lastSaleIndex);
+    
             todayDataset = {
-                label: `Today's Sales`, data: calculateCumulative(parsedResult.sales, lastSaleIndex), raw: parsedResult.sales,
-                borderColor: '#FF69B4', borderWidth: 3, pointRadius: 0, tension: 0.4, fill: true,
+                label: `Today's Sales`,
+                data: cumulativeSales,
+                raw: parsedResult.sales,
+                borderColor: '#FF69B4',
+                borderWidth: 3,
+                pointRadius: 0,
+                tension: 0.4,
+                fill: true,
                 backgroundColor: 'rgba(255, 105, 180, 0.1)'
             };
+    
+            const projectedSales = calculateProjectedSales(parsedResult.sales, historicalData, salesDateInput.valueAsDate || new Date());
+            const projectedCumulative = calculateCumulative(projectedSales.fullDay);
+    
+            // Make the projected line start from the last actual sales point
+            for (let i = 0; i < lastSaleIndex; i++) {
+                projectedCumulative[i] = null;
+            }
+            projectedCumulative[lastSaleIndex] = cumulativeSales[lastSaleIndex];
+    
+    
+            projectedDataset = {
+                label: 'Projected Sales',
+                data: projectedCumulative,
+                borderColor: '#FF69B4',
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.4,
+                fill: false,
+                borderDash: [5, 5] // This creates the dotted line
+            };
         }
-        
-        let datasets = todayDataset ? [todayDataset] : [];
+    
+        let datasets = [];
+        if (todayDataset) datasets.push(todayDataset);
+        if (projectedDataset) datasets.push(projectedDataset);
+    
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         let comparisonData = null;
         if (selectedMode && historicalData.length > 0) {
             comparisonData = getComparisonData(selectedMode);
             if (comparisonData) datasets.push(...comparisonData);
         }
-
+    
         if (datasets.length === 0 && currentChartType !== 'heatmap') {
-            chartError.textContent = "No data available to generate chart. Please upload a file."; 
+            chartError.textContent = "No data available to generate chart. Please upload a file.";
             return;
         }
-
+    
         renderChart(datasets);
         updateKpis(todayDataset, comparisonData);
         generateInsights(todayDataset, comparisonData);
@@ -824,7 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
         peakHourData = peak2HoursResult;
         const kpis = [
             { hero: true, title: "Today's Total Sales", value: `£${todayTotal.toFixed(2)}`, change: change, label: comparisonLabel },
-            { title: "Projected Sales", value: `~ £${projectedSales.toFixed(2)}`, label: 'based on current run-rate' },
+            { title: "Projected Sales", value: `~ £${projectedSales.total.toFixed(2)}`, label: 'based on current run-rate' },
             { title: "Avg. Sales", value: `£${(todayTotal / (todayData.raw.filter(v => v > 0).length || 1)).toFixed(2)}`, label: 'per active half-hour' },
             { title: "Peak 2 Hours", value: peak2HoursResult.label, label: 'highest sales interval' }
         ];
@@ -848,29 +882,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const calculateProjectedSales = (rawSales, historicalData, salesDate) => {
         const lastSaleIndex = findLastSaleIndex(rawSales);
-        if (lastSaleIndex === -1) return 0;
-
+        if (lastSaleIndex === -1 || lastSaleIndex >= timeSlots.length - 1) {
+            const total = rawSales.reduce((a, b) => a + b, 0);
+            return { total, fullDay: rawSales };
+        }
+    
         const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
         const relevantHistoricalDays = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
-
-        if (relevantHistoricalDays.length < 3) { // Fallback to simple run-rate if not enough data
-            const intervalsPassed = lastSaleIndex + 1;
-            const totalSoFar = rawSales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
-            return (totalSoFar / intervalsPassed) * timeSlots.length;
-        }
-
-        const historicalAverageSales = timeSlots.map((_, i) =>
-            relevantHistoricalDays.reduce((sum, d) => sum + d.sales[i], 0) / relevantHistoricalDays.length
-        );
-
+    
+        let performanceFactor = 1;
         const intervalsPassed = lastSaleIndex + 1;
         const totalSoFar = rawSales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
-        const historicalTotalForIntervalsPassed = historicalAverageSales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
-
-        const performanceFactor = historicalTotalForIntervalsPassed > 0 ? totalSoFar / historicalTotalForIntervalsPassed : 1;
-        const projectedRemainingSales = historicalAverageSales.slice(intervalsPassed).reduce((sum, avg) => sum + (avg * performanceFactor), 0);
-
-        return totalSoFar + projectedRemainingSales;
+    
+        if (relevantHistoricalDays.length > 0) {
+            const historicalTotalForIntervalsPassed = relevantHistoricalDays.reduce((sum, day) => {
+                return sum + day.sales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
+            }, 0) / relevantHistoricalDays.length;
+    
+            if (historicalTotalForIntervalsPassed > 0) {
+                performanceFactor = totalSoFar / historicalTotalForIntervalsPassed;
+            }
+        }
+    
+        const historicalAverageSalesForRestOfDay = timeSlots.slice(intervalsPassed).map((_, i) => {
+            const index = i + intervalsPassed;
+            if (relevantHistoricalDays.length === 0) {
+                const averageOfPastIntervals = totalSoFar / intervalsPassed;
+                return averageOfPastIntervals > 0 ? averageOfPastIntervals : 0;
+            }
+            return relevantHistoricalDays.reduce((sum, d) => sum + d.sales[index], 0) / relevantHistoricalDays.length;
+        });
+    
+        const projectedRemainingSales = historicalAverageSalesForRestOfDay.map(avg => avg * performanceFactor);
+    
+        const fullDaySales = [...rawSales.slice(0, intervalsPassed), ...projectedRemainingSales];
+        const totalProjectedSales = fullDaySales.reduce((a, b) => a + b, 0);
+    
+        return { total: totalProjectedSales, fullDay: fullDaySales };
     };
 
     const getPeak2Hours = (salesArray) => {
