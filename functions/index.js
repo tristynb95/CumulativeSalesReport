@@ -31,7 +31,7 @@ const parseDDMMYYYY = (dateInput) => {
 
 exports.processSalesData = functions.runWith({
   timeoutSeconds: 540,
-  memory: "1GB", // Allocate more memory just in case
+  memory: "1GB",
 }).https.onRequest((req, res) => {
   cors(req, res, async () => {
     if (req.method !== "POST") {
@@ -51,7 +51,7 @@ exports.processSalesData = functions.runWith({
       return res.status(403).send("Unauthorized");
     }
 
-    const busboy = Busboy({headers: req.headers});
+    const busboy = new Busboy({headers: req.headers});
     let fileStream;
 
     busboy.on("file", (fieldname, file, filename) => {
@@ -71,86 +71,3 @@ exports.processSalesData = functions.runWith({
     busboy.end(req.rawBody);
   });
 });
-
-/**
- * Processes a file stream, parses spreadsheet data, and saves it to Firestore.
- * @param {ReadableStream} fileStream The file stream to process.
- * @param {string} uid The user's unique ID.
- * @return {Promise<number>} A promise that resolves with the number of
- * valid records processed.
- */
-async function processStream(fileStream, uid) {
-  const workbook = new ExcelJS.stream.xlsx.WorkbookReader();
-  const worksheetReader =
-    (await workbook.read(fileStream, {entries: "emit"})).worksheets[0];
-
-  let header = [];
-  let timeSlots = [];
-  let batch = db.batch();
-  let batchCounter = 0;
-  let validRecords = 0;
-
-  for await (const row of worksheetReader) {
-    if (row.number === 1) {
-      header = row.values.map((h) => String(h).trim());
-      timeSlots = Array.from({length: 28}, (_, i) => {
-        const hour = Math.floor(i / 2) + 5;
-        const minute = i % 2 === 0 ? "00" : "30";
-        return `${String(hour).padStart(2, "0")}:${minute}`;
-      });
-      continue;
-    }
-
-    const rowData = row.values;
-    if (!rowData[1]) continue;
-
-    const date = parseDDMMYYYY(rowData[1]);
-    if (isNaN(date.getTime())) continue;
-
-    const alignedSales = Array(timeSlots.length).fill(0);
-    header.slice(1).forEach((slot, index) => {
-      const mainIndex = timeSlots.indexOf(slot);
-      if (mainIndex !== -1) {
-        alignedSales[mainIndex] = parseFloat(rowData[index + 2]) || 0;
-      }
-    });
-
-    const totalSales = alignedSales.reduce((a, b) => a + b, 0);
-    if (totalSales === 0) continue;
-
-    const docId = date.toISOString().split("T")[0];
-    const docRef =
-      db.collection("users").doc(uid).collection("dailySales").doc(docId);
-
-    const dayData = {
-      id: docId,
-      date: date.toISOString(),
-      dayOfWeek: date.toLocaleDateString("en-GB", {
-        weekday: "long",
-        timeZone: "UTC",
-      }),
-      sales: alignedSales,
-      totalSales,
-    };
-
-    batch.set(docRef, dayData);
-    batchCounter++;
-    validRecords++;
-
-    if (batchCounter === BATCH_SIZE) {
-      await batch.commit();
-      batch = db.batch();
-      batchCounter = 0;
-    }
-  }
-
-  if (batchCounter > 0) {
-    await batch.commit();
-  }
-
-  if (validRecords === 0) {
-    throw new Error("No valid data rows found in the file.");
-  }
-
-  return validRecords;
-}
