@@ -119,39 +119,47 @@ async function processWorksheetStream(worksheetReader, uid) {
   return validRecords;
 }
 
-
 exports.processSalesData = onRequest(
     {timeoutSeconds: 540, memory: "1GiB"},
     (req, res) => {
       cors(req, res, async () => {
         if (req.method !== "POST") {
-          return res.status(405).send("Method Not Allowed");
+          return res.status(405).send({error: "Method Not Allowed"});
         }
 
         let user;
         try {
           if (!req.headers.authorization ||
             !req.headers.authorization.startsWith("Bearer ")) {
-            throw new Error("Unauthorized");
+            throw new Error("Unauthorized: No authorization token.");
           }
           const idToken = req.headers.authorization.split("Bearer ")[1];
           user = await admin.auth().verifyIdToken(idToken);
         } catch (error) {
           functions.logger.error("Auth error:", error);
-          return res.status(403).send("Unauthorized");
+          return res.status(403).send({error: "Unauthorized"});
         }
 
         const busboy = new Busboy({headers: req.headers});
 
         busboy.on("file", (fieldname, file, {filename}) => {
           const isCsv = filename.toLowerCase().endsWith(".csv");
+          const workbook = new ExcelJS.stream.xlsx.WorkbookReader();
+          const csvOptions = {
+            // CSV parsing options can go here if needed
+          };
 
-          const processAndRespond = (worksheetReader) => {
+          const stream = isCsv ?
+            workbook.csv.read(file, csvOptions) :
+            workbook.read(file, {entries: "emit"});
+
+          stream.on("worksheet", (worksheetReader) => {
             processWorksheetStream(worksheetReader, user.uid)
                 .then((count) => {
                   if (!res.headersSent) {
-                    const message = `Processed ${count} records.`;
-                    res.status(200).send({message});
+                    res.status(200).send({
+                      message: `Successfully processed ${count} records.`,
+                    });
                   }
                 })
                 .catch((err) => {
@@ -160,30 +168,24 @@ exports.processSalesData = onRequest(
                     res.status(500).send({error: err.message});
                   }
                 });
-          };
+          });
 
-          if (isCsv) {
-            const csvReader = new ExcelJS.stream.csv.WorkbookReader();
-            csvReader.read(file, {headers: true, delimiter: ","})
-                .on("worksheet", processAndRespond)
-                .on("error", (err) => {
-                  if (!res.headersSent) {
-                    res.status(500).send({error: err.message});
-                  }
-                });
-          } else {
-            const workbook = new ExcelJS.stream.xlsx.WorkbookReader();
-            workbook.read(file, {entries: "emit"})
-                .on("worksheet", processAndRespond)
-                .on("error", (err) => {
-                  if (!res.headersSent) {
-                    res.status(500).send({error: err.message});
-                  }
-                });
+          stream.on("error", (err) => {
+            functions.logger.error("File stream error:", err);
+            if (!res.headersSent) {
+              res.status(500).send({error: "Failed to parse file stream."});
+            }
+          });
+        });
+
+        busboy.on("error", (err) => {
+          functions.logger.error("Busboy error:", err);
+          if (!res.headersSent) {
+            res.status(500).send({error: "File upload parsing failed."});
           }
         });
 
-        busboy.end(req.rawBody);
+        req.pipe(busboy);
       });
     },
 );
