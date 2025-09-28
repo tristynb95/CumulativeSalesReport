@@ -16,30 +16,31 @@ const BATCH_SIZE = 500;
  * @return {Date} The parsed Date object.
  */
 const parseDDMMYYYY = (dateInput) => {
+  if (!dateInput) return null;
   const dateString = String(dateInput);
   const parts = dateString.split(/[/.-]/);
   if (parts.length === 3) {
     const [day, month, year] = parts.map(Number);
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
     const fullYear = year < 100 ? 2000 + year : year;
-    return new Date(Date.UTC(fullYear, month - 1, day));
+    const d = new Date(Date.UTC(fullYear, month - 1, day));
+    return isNaN(d.getTime()) ? null : d;
   }
   if (!isNaN(dateInput)) {
-    return new Date(Date.UTC(1900, 0, dateInput - 1));
+    const d = new Date(Date.UTC(1900, 0, dateInput - 1));
+    return isNaN(d.getTime()) ? null : d;
   }
-  return new Date(dateString);
+  const d = new Date(dateString);
+  return isNaN(d.getTime()) ? null : d;
 };
 
 /**
- * Processes a file stream and saves data to Firestore.
- * @param {ReadableStream} fileStream The file stream to process.
+ * Processes a worksheet stream and saves data to Firestore.
+ * @param {ExcelJS.WorksheetReader} worksheetReader The worksheet reader stream.
  * @param {string} uid The user's unique ID.
  * @return {Promise<number>} Resolves with the number of records processed.
  */
-async function processStream(fileStream, uid) {
-  const workbook = new ExcelJS.stream.xlsx.WorkbookReader();
-  const workbookReader = await workbook.read(fileStream, {entries: "emit"});
-  const worksheetReader = workbookReader.worksheets[0];
-
+async function processWorksheetStream(worksheetReader, uid) {
   let header = [];
   let timeSlots = [];
   let batch = db.batch();
@@ -48,7 +49,7 @@ async function processStream(fileStream, uid) {
 
   for await (const row of worksheetReader) {
     if (row.number === 1) {
-      header = row.values.map((h) => String(h).trim());
+      header = row.values.map((h) => String(h || "").trim());
       timeSlots = Array.from({length: 28}, (_, i) => {
         const hour = Math.floor(i / 2) + 5;
         const minute = i % 2 === 0 ? "00" : "30";
@@ -58,10 +59,10 @@ async function processStream(fileStream, uid) {
     }
 
     const rowData = row.values;
-    if (!rowData[1]) continue;
+    if (!rowData || !rowData[1]) continue;
 
     const date = parseDDMMYYYY(rowData[1]);
-    if (isNaN(date.getTime())) continue;
+    if (!date) continue;
 
     const alignedSales = Array(timeSlots.length).fill(0);
     header.slice(1).forEach((slot, index) => {
@@ -93,7 +94,7 @@ async function processStream(fileStream, uid) {
     batchCounter++;
     validRecords++;
 
-    if (batchCounter === BATCH_SIZE) {
+    if (batchCounter >= BATCH_SIZE) {
       await batch.commit();
       batch = db.batch();
       batchCounter = 0;
@@ -132,19 +133,43 @@ exports.processSalesData = onRequest(
           return res.status(403).send("Unauthorized");
         }
 
-        const busboy = new Busboy({headers: req.headers});
+        const busboyOptions = {headers: req.headers};
+        const busboy = new Busboy(busboyOptions);
 
-        busboy.on("file", (fieldname, file, filename) => {
-          processStream(file, req.user.uid)
-              .then((recordCount) => {
-                res.status(200).send({
-                  message: `Processed and saved ${recordCount} records.`,
+        busboy.on("file", (fieldname, file, {filename}) => {
+          const workbook = new ExcelJS.stream.xlsx.WorkbookReader();
+          const isCsv = filename.toLowerCase().endsWith(".csv");
+
+          const streamOptions = {entries: "emit"};
+          const stream = isCsv ? file : workbook.read(file, streamOptions);
+
+          stream.on("error", (error) => {
+            functions.logger.error("Stream processing error:", error);
+            if (!res.headersSent) {
+              res.status(500).send({error: "Error reading file stream."});
+            }
+          });
+
+          stream.on("worksheet", (worksheetReader) => {
+            processWorksheetStream(worksheetReader, req.user.uid)
+                .then((count) => res.status(200)
+                    .send({message: `Success: ${count} records.`}))
+                .catch((err) => res.status(500)
+                    .send({error: err.message}));
+          });
+
+          if (isCsv) {
+            const csvWorkbook = new ExcelJS.stream.csv.WorkbookReader();
+            const parserOptions = {header: true, delimiter: ","};
+            csvWorkbook.read(file, {parserOptions})
+                .on("worksheet", (worksheetReader) => {
+                  processWorksheetStream(worksheetReader, req.user.uid)
+                      .then((count) => res.status(200)
+                          .send({message: `Success: ${count} records.`}))
+                      .catch((err) => res.status(500)
+                          .send({error: err.message}));
                 });
-              })
-              .catch((error) => {
-                functions.logger.error("Error processing stream:", error);
-                res.status(500).send({error: error.message});
-              });
+          }
         });
 
         busboy.end(req.rawBody);
