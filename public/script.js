@@ -478,9 +478,10 @@ document.addEventListener('DOMContentLoaded', () => {
         generateInsights(todayDataset, comparisonData);
     };
     
+    // MODIFICATION: Changed the order of element creation
     const renderAdditionalControls = (mode) => {
         additionalControlsContainer.innerHTML = '';
-        selectedDatesDisplay.classList.add('hidden'); // Hide by default
+        selectedDatesDisplay.classList.add('hidden'); 
 
         if (mode === 'average') {
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -536,12 +537,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const div = document.createElement('div');
             div.className = 'control-group';
             div.appendChild(createCheckboxes(mode));
-            const clearButton = document.createElement('button');
-            clearButton.textContent = 'Clear Selection';
-            clearButton.className = 'clear-selection-btn';
-            div.appendChild(clearButton);
+            // The clear button will now be added after the selected dates list
             additionalControlsContainer.appendChild(div);
-            updateSelectedDatesDisplay(); // Initial update
+            updateSelectedDatesDisplay(); // This will show/hide the list
+            
+            // Add the clear button if there are checkboxes
+            if (additionalControlsContainer.querySelector('.checkbox-container')) {
+                const clearButton = document.createElement('button');
+                clearButton.textContent = 'Clear Selection';
+                clearButton.className = 'clear-selection-btn';
+                // Append it after the selected dates display, which is outside this container
+                analysisPanel.insertBefore(clearButton, generatePanel);
+                // We need to re-query for it and attach the listener
+                clearButton.addEventListener('click', () => {
+                    confirmationModal.classList.remove('hidden');
+                });
+            }
         }
     };
     
@@ -577,7 +588,8 @@ document.addEventListener('DOMContentLoaded', () => {
         div.appendChild(container);
         return div;
     };
-
+    
+    // MODIFICATION: Reworked the updateSelectedDatesDisplay function
     const updateSelectedDatesDisplay = () => {
         const checked = Array.from(document.querySelectorAll('#additional-controls input:checked'));
         if (checked.length > 0) {
@@ -591,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedDatesDisplay.classList.add('hidden');
         }
     };
-    
+
     const getComparisonData = (mode) => {
         const salesDate = salesDateInput.valueAsDate || new Date();
         const utcDate = new Date(Date.UTC(salesDate.getFullYear(), salesDate.getMonth(), salesDate.getDate()));
@@ -699,7 +711,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     };
     
-    // MODIFICATION: Rolled back renderChart to the previous version
     const renderChart = (datasets) => {
         if (salesChart) salesChart.destroy();
         chartPlaceholder.style.display = 'none';
