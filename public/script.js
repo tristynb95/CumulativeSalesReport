@@ -17,13 +17,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const minute = i % 2 === 0 ? '00' : '30';
         return `${String(hour).padStart(2, '0')}:${minute}`;
     });
-    // MODIFICATION: Expanded lineColors to support more datasets
     const lineColors = ['#8A2BE2', '#00BFFF', '#32CD32', '#FF69B4', '#FFD700', '#1E90FF', '#FF4500', '#DA70D6', '#00CED1', '#ADFF2F', '#FF6347', '#4682B4'];
     const comparisonModes = {
         average: 'Day of Week (Average)',
         top_weekday: 'Day of Week (Record High)',
         lowest_by_weekday: 'Day of Week (Record Low)',
-        // MODIFICATION: Added 'record_highs' mode
         record_highs: 'Record Sales (Highest)',
         worst_days: 'Record Sales (Lowest)',
         specific: 'Specific Day(s)',
@@ -63,6 +61,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const insightsPanel = document.getElementById('insights-panel');
     const insightsCloseBtn = document.getElementById('insights-close-btn');
     const insightsOverlay = document.getElementById('insights-overlay');
+    // MODIFICATION: Added modal elements
+    const confirmationModal = document.getElementById('confirmation-modal');
+    const confirmClearBtn = document.getElementById('confirm-clear-btn');
+    const cancelClearBtn = document.getElementById('cancel-clear-btn');
 
 
     // --- AUTHENTICATION LISTENER --- //
@@ -260,6 +262,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         additionalControlsContainer.addEventListener('click', handleCustomSelect);
         
+        // MODIFICATION: Added modal event listeners
+        confirmClearBtn.addEventListener('click', () => {
+            const checkboxes = additionalControlsContainer.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => checkbox.checked = false);
+            confirmationModal.classList.add('hidden');
+        });
+
+        cancelClearBtn.addEventListener('click', () => {
+            confirmationModal.classList.add('hidden');
+        });
+
         window.addEventListener('click', (e) => {
             const select = document.querySelector('.custom-select');
             if (select && !select.contains(e.target)) {
@@ -355,6 +368,11 @@ document.addEventListener('DOMContentLoaded', () => {
             select.querySelector('.custom-option.selected').classList.remove('selected');
             option.classList.add('selected');
             select.classList.remove('open');
+        }
+        // MODIFICATION: Show modal on clear button click
+        const clearButton = e.target.closest('.clear-selection-btn');
+        if (clearButton) {
+            confirmationModal.classList.remove('hidden');
         }
     };
     
@@ -509,11 +527,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             additionalControlsContainer.innerHTML = controlHTML;
-        // MODIFICATION: Added 'record_highs' to this condition
         } else if (['worst_days', 'specific', 'record_highs'].includes(mode)) {
             const div = document.createElement('div');
             div.className = 'control-group';
             div.appendChild(createCheckboxes(mode));
+            // MODIFICATION: Add the clear selection button
+            const clearButton = document.createElement('button');
+            clearButton.textContent = 'Clear Selection';
+            clearButton.className = 'clear-selection-btn';
+            div.appendChild(clearButton);
             additionalControlsContainer.appendChild(div);
         }
     };
@@ -524,7 +546,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const sortAndSlice = (sortFn, slice) => [...historicalData].sort(sortFn).slice(0, slice);
         
         switch (mode) {
-            // MODIFICATION: Added 'record_highs' case
             case 'record_highs':
                 data = sortAndSlice((a, b) => b.totalSales - a.totalSales, 10);
                 label = '10 Highest Sales Days'; break;
@@ -533,7 +554,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 label = '10 Lowest Sales Days'; break;
             case 'specific':
                 data = sortAndSlice((a, b) => new Date(b.date) - new Date(a.date), 100);
-                // MODIFICATION: Updated label to reflect the new limit
                 label = 'Select up to 10 days'; break;
         }
 
@@ -641,11 +661,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 return lowest5Days.map((day, i) => createDataset(day, i));
             }
-            // MODIFICATION: Added 'record_highs' case
             case 'specific': case 'worst_days': case 'record_highs': {
                 const checked = Array.from(document.querySelectorAll('#additional-controls input:checked'));
                 if (!checked.length) { chartError.textContent = 'Please select at least one day.'; return null; }
-                // MODIFICATION: Changed slice to 10
                 return checked.slice(0, 10).map((box, i) => {
                     const dayData = historicalData.find(d => d.id === box.value);
                     return dayData ? createDataset(dayData, i) : null;
