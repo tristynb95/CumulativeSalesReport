@@ -3,6 +3,7 @@ const admin = require("firebase-admin");
 const ExcelJS = require("exceljs");
 const Busboy = require("busboy");
 const cors = require("cors")({origin: true});
+const {onRequest} = require("firebase-functions/v2/https");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -110,43 +111,43 @@ async function processStream(fileStream, uid) {
   return validRecords;
 }
 
-exports.processSalesData = functions.runWith({
-  timeoutSeconds: 540,
-  memory: "1GB",
-}).https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    if (req.method !== "POST") {
-      return res.status(405).send("Method Not Allowed");
-    }
+exports.processSalesData = onRequest(
+    {timeoutSeconds: 540, memory: "1GiB"},
+    (req, res) => {
+      cors(req, res, async () => {
+        if (req.method !== "POST") {
+          return res.status(405).send("Method Not Allowed");
+        }
 
-    let idToken;
-    try {
-      if (!req.headers.authorization ||
-        !req.headers.authorization.startsWith("Bearer ")) {
-        throw new Error("Unauthorized");
-      }
-      idToken = req.headers.authorization.split("Bearer ")[1];
-      req.user = await admin.auth().verifyIdToken(idToken);
-    } catch (error) {
-      functions.logger.error("Error verifying Firebase ID token:", error);
-      return res.status(403).send("Unauthorized");
-    }
+        let idToken;
+        try {
+          if (!req.headers.authorization ||
+            !req.headers.authorization.startsWith("Bearer ")) {
+            throw new Error("Unauthorized");
+          }
+          idToken = req.headers.authorization.split("Bearer ")[1];
+          req.user = await admin.auth().verifyIdToken(idToken);
+        } catch (error) {
+          functions.logger.error("Error verifying Firebase ID token:", error);
+          return res.status(403).send("Unauthorized");
+        }
 
-    const busboy = new Busboy({headers: req.headers});
+        const busboy = new Busboy({headers: req.headers});
 
-    busboy.on("file", (fieldname, file, filename) => {
-      processStream(file, req.user.uid)
-          .then((recordCount) => {
-            res.status(200).send({
-              message: `Processed and saved ${recordCount} records.`,
-            });
-          })
-          .catch((error) => {
-            functions.logger.error("Error processing stream:", error);
-            res.status(500).send({error: error.message});
-          });
-    });
+        busboy.on("file", (fieldname, file, filename) => {
+          processStream(file, req.user.uid)
+              .then((recordCount) => {
+                res.status(200).send({
+                  message: `Processed and saved ${recordCount} records.`,
+                });
+              })
+              .catch((error) => {
+                functions.logger.error("Error processing stream:", error);
+                res.status(500).send({error: error.message});
+              });
+        });
 
-    busboy.end(req.rawBody);
-  });
-});
+        busboy.end(req.rawBody);
+      });
+    },
+);
