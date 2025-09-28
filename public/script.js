@@ -17,11 +17,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const minute = i % 2 === 0 ? '00' : '30';
         return `${String(hour).padStart(2, '0')}:${minute}`;
     });
-    const lineColors = ['#8A2BE2', '#00BFFF', '#32CD32', '#FF69B4', '#FFD700', '#1E90FF'];
+    // MODIFICATION: Expanded lineColors to support more datasets
+    const lineColors = ['#8A2BE2', '#00BFFF', '#32CD32', '#FF69B4', '#FFD700', '#1E90FF', '#FF4500', '#DA70D6', '#00CED1', '#ADFF2F', '#FF6347', '#4682B4'];
     const comparisonModes = {
         average: 'Day of Week (Average)',
         top_weekday: 'Day of Week (Record High)',
         lowest_by_weekday: 'Day of Week (Record Low)',
+        // MODIFICATION: Added 'record_highs' mode
+        record_highs: 'Record Sales (Highest)',
         worst_days: 'Record Sales (Lowest)',
         specific: 'Specific Day(s)',
         same_day_last_week: 'Same Day Last Week',
@@ -506,7 +509,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             additionalControlsContainer.innerHTML = controlHTML;
-        } else if (['worst_days', 'specific'].includes(mode)) {
+        // MODIFICATION: Added 'record_highs' to this condition
+        } else if (['worst_days', 'specific', 'record_highs'].includes(mode)) {
             const div = document.createElement('div');
             div.className = 'control-group';
             div.appendChild(createCheckboxes(mode));
@@ -520,12 +524,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const sortAndSlice = (sortFn, slice) => [...historicalData].sort(sortFn).slice(0, slice);
         
         switch (mode) {
+            // MODIFICATION: Added 'record_highs' case
+            case 'record_highs':
+                data = sortAndSlice((a, b) => b.totalSales - a.totalSales, 10);
+                label = '10 Highest Sales Days'; break;
             case 'worst_days':
                 data = sortAndSlice((a, b) => a.totalSales - b.totalSales, 10);
                 label = '10 Lowest Sales Days'; break;
             case 'specific':
                 data = sortAndSlice((a, b) => new Date(b.date) - new Date(a.date), 100);
-                label = 'Select up to 6 days'; break;
+                // MODIFICATION: Updated label to reflect the new limit
+                label = 'Select up to 10 days'; break;
         }
 
         div.innerHTML = `<label>${label}</label>`;
@@ -632,10 +641,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 return lowest5Days.map((day, i) => createDataset(day, i));
             }
-            case 'specific': case 'worst_days': {
+            // MODIFICATION: Added 'record_highs' case
+            case 'specific': case 'worst_days': case 'record_highs': {
                 const checked = Array.from(document.querySelectorAll('#additional-controls input:checked'));
                 if (!checked.length) { chartError.textContent = 'Please select at least one day.'; return null; }
-                return checked.slice(0, 6).map((box, i) => {
+                // MODIFICATION: Changed slice to 10
+                return checked.slice(0, 10).map((box, i) => {
                     const dayData = historicalData.find(d => d.id === box.value);
                     return dayData ? createDataset(dayData, i) : null;
                 }).filter(Boolean);
