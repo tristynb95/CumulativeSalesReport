@@ -115,38 +115,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleFile = async (file) => {
         if (!file || !currentUser) return;
         updateFileStatus(`Uploading and processing ${file.name}...`, false);
-        
-        const token = await currentUser.getIdToken();
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const fileContents = e.target.result.split(',')[1];
+        try {
+            const token = await currentUser.getIdToken();
             const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData';
-            
-            fetch(functionUrl, {
+
+            // Use FormData to correctly handle file uploads
+            const formData = new FormData();
+            formData.append('file', file, file.name); // 'file' is the fieldname your function expects
+
+            const response = await fetch(functionUrl, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
+                headers: {
+                    // Do NOT set Content-Type; the browser will set it to multipart/form-data with the correct boundary
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ fileContents, fileName: file.name }),
-            })
-            .then(response => {
-                if (!response.ok) return response.json().then(err => { throw new Error(err.error || 'Processing failed') });
-                return response.json();
-            })
-            .then(data => {
-                updateFileStatus(data.message, false);
-                localStorage.setItem('savedFileName', file.name);
-                loadFromFirestore();
-            })
-            .catch(error => {
-                console.error('Upload Error:', error);
-                updateFileStatus(`Error: ${error.message}`, true);
+                body: formData,
             });
-        };
-        reader.onerror = () => updateFileStatus("Failed to read file.", true);
-        reader.readAsDataURL(file);
+
+            // Improved error handling for both JSON and text responses
+            if (!response.ok) {
+                let errorMessage = `Upload failed with status: ${response.status}`;
+                try {
+                    const errorBody = await response.json();
+                    errorMessage = errorBody.error || JSON.stringify(errorBody);
+                } catch (e) {
+                    // If the error response is not JSON, use its text content
+                    const textError = await response.text();
+                    errorMessage = textError || 'Processing failed on the server.';
+                }
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            updateFileStatus(data.message, false);
+            localStorage.setItem('savedFileName', file.name);
+            loadFromFirestore(); // Reload data after successful processing
+
+        } catch (error) {
+            console.error('Upload Error:', error);
+            updateFileStatus(`Error: ${error.message}`, true);
+        }
     };
 
     // --- UI & EVENT LISTENERS --- //
