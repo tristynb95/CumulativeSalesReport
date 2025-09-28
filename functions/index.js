@@ -1,7 +1,7 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const ExcelJS = require("exceljs");
-const Busboy = require("busboy");
+const busboy = require("busboy"); // Corrected import
 const cors = require("cors")({origin: true});
 const {onRequest} = require("firebase-functions/v2/https");
 
@@ -250,34 +250,14 @@ exports.processSalesData = onRequest(
           return res.status(403).send({error: "Unauthorized"});
         }
 
-        const busboy = new Busboy({headers: req.headers});
+        const bb = busboy({headers: req.headers}); // Corrected instantiation
 
-        busboy.on("file", (fieldname, file, {filename}) => {
-          const isCsv = filename.toLowerCase().endsWith(".csv");
+        bb.on("file", (fieldname, file, {filename}) => {
+          try {
+            const isCsv = filename.toLowerCase().endsWith(".csv");
 
-          if (isCsv) {
-            processCsvStream(file, user.uid)
-                .then((count) => {
-                  if (!res.headersSent) {
-                    res.status(200).send({
-                      message: `Successfully processed ${count} records.`,
-                    });
-                  }
-                })
-                .catch((err) => {
-                  functions.logger.error("CSV Processing error:", err);
-                  if (!res.headersSent) {
-                    res
-                        .status(500)
-                        .send({error: `CSV processing failed: ${err.message}`});
-                  }
-                });
-          } else {
-            const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader();
-            const stream = workbookReader.read(file, {entries: "emit"});
-
-            stream.on("worksheet", (worksheetReader) => {
-              processWorksheetStream(worksheetReader, user.uid)
+            if (isCsv) {
+              processCsvStream(file, user.uid)
                   .then((count) => {
                     if (!res.headersSent) {
                       res.status(200).send({
@@ -286,39 +266,63 @@ exports.processSalesData = onRequest(
                     }
                   })
                   .catch((err) => {
-                    functions.logger.error("Excel Processing error:", err);
+                    functions.logger.error("CSV Processing error:", err);
                     if (!res.headersSent) {
                       res
                           .status(500)
                           .send({
-                            error: `Excel processing failed: ${err.message}`,
+                            error: `CSV processing failed: ${err.message}`,
                           });
                     }
                   });
-            });
+            } else {
+              const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader();
+              const stream = workbookReader.read(file, {entries: "emit"});
 
-            stream.on("error", (err) => {
-              functions.logger.error("File stream error:", err);
-              if (!res.headersSent) {
-                res.status(500).send({error: "Failed to parse file stream."});
-              }
-            });
+              stream.on("worksheet", (worksheetReader) => {
+                processWorksheetStream(worksheetReader, user.uid)
+                    .then((count) => {
+                      if (!res.headersSent) {
+                        res.status(200).send({
+                          message: `Successfully processed ${count} records.`,
+                        });
+                      }
+                    })
+                    .catch((err) => {
+                      functions.logger.error("Excel Processing error:", err);
+                      if (!res.headersSent) {
+                        res.status(500)
+                            .send({
+                              error: `Excel processing failed: ${err.message}`,
+                            });
+                      }
+                    });
+              });
+
+              stream.on("error", (err) => {
+                functions.logger.error("File stream error:", err);
+                if (!res.headersSent) {
+                  res.status(500)
+                      .send({error: "Failed to parse file stream."});
+                }
+              });
+            }
+          } catch (err) {
+            functions.logger.error("Critical error in file handler:", err);
+            if (!res.headersSent) {
+              res.status(500).send({error: "A critical error occurred."});
+            }
           }
         });
 
-        busboy.on("finish", () => {
-        // This is a good place for cleanup, but we'll let the file handlers
-        // manage the response.
-        });
-
-        busboy.on("error", (err) => {
+        bb.on("error", (err) => {
           functions.logger.error("Busboy error:", err);
           if (!res.headersSent) {
             res.status(500).send({error: "File upload parsing failed."});
           }
         });
 
-        req.pipe(busboy);
+        req.pipe(bb);
       });
     },
 );
