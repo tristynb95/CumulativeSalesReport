@@ -64,8 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmationModal = document.getElementById('confirmation-modal');
     const confirmClearBtn = document.getElementById('confirm-clear-btn');
     const cancelClearBtn = document.getElementById('cancel-clear-btn');
-    // MODIFICATION: Added goal line checkbox element
-    const goalLineCheckbox = document.getElementById('goal-line-checkbox');
+    const selectedDatesDisplay = document.getElementById('selected-dates-display');
+    const selectedDatesList = document.getElementById('selected-dates-list');
 
 
     // --- AUTHENTICATION LISTENER --- //
@@ -267,14 +267,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const checkboxes = additionalControlsContainer.querySelectorAll('input[type="checkbox"]');
             checkboxes.forEach(checkbox => checkbox.checked = false);
             confirmationModal.classList.add('hidden');
+            updateSelectedDatesDisplay();
         });
 
         cancelClearBtn.addEventListener('click', () => {
             confirmationModal.classList.add('hidden');
         });
-
-        // MODIFICATION: Added event listener for goal line checkbox
-        goalLineCheckbox.addEventListener('change', handleUpdateChart);
 
         window.addEventListener('click', (e) => {
             const select = document.querySelector('.custom-select');
@@ -376,6 +374,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clearButton) {
             confirmationModal.classList.remove('hidden');
         }
+        if (e.target.matches('input[type="checkbox"]')) {
+            updateSelectedDatesDisplay();
+        }
     };
     
     // --- DATA PARSING & PROCESSING --- //
@@ -467,7 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (comparisonData) datasets.push(...comparisonData);
         }
 
-        if (datasets.length === 0) {
+        if (datasets.length === 0 && currentChartType !== 'heatmap') {
             chartError.textContent = "No data available to generate chart. Please upload a file."; 
             return;
         }
@@ -479,6 +480,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const renderAdditionalControls = (mode) => {
         additionalControlsContainer.innerHTML = '';
+        selectedDatesDisplay.classList.add('hidden'); // Hide by default
+
         if (mode === 'average') {
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
             const dateRanges = {
@@ -538,6 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clearButton.className = 'clear-selection-btn';
             div.appendChild(clearButton);
             additionalControlsContainer.appendChild(div);
+            updateSelectedDatesDisplay(); // Initial update
         }
     };
     
@@ -572,6 +576,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         div.appendChild(container);
         return div;
+    };
+
+    const updateSelectedDatesDisplay = () => {
+        const checked = Array.from(document.querySelectorAll('#additional-controls input:checked'));
+        if (checked.length > 0) {
+            selectedDatesList.innerHTML = checked.map(checkbox => {
+                const dayData = historicalData.find(d => d.id === checkbox.value);
+                const formattedDate = new Date(dayData.date).toLocaleDateString('en-GB', { timeZone: 'UTC' });
+                return `<span class="selected-date-item">${formattedDate}</span>`;
+            }).join('');
+            selectedDatesDisplay.classList.remove('hidden');
+        } else {
+            selectedDatesDisplay.classList.add('hidden');
+        }
     };
     
     const getComparisonData = (mode) => {
@@ -681,103 +699,64 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     };
     
-    // MODIFICATION: Reworked the renderChart function to support the new chart type
+    // MODIFICATION: Rolled back renderChart to the previous version
     const renderChart = (datasets) => {
         if (salesChart) salesChart.destroy();
         chartPlaceholder.style.display = 'none';
         const ctx = document.getElementById('salesChart').getContext('2d');
+        let chartConfig;
 
-        const todayData = datasets.find(ds => ds.label === "Today's Sales");
-        const salesDate = salesDateInput.valueAsDate || new Date();
-        const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
-
-        const relevantHistoricalDays = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
-        const avgSales = timeSlots.map((_, i) => relevantHistoricalDays.reduce((sum, d) => sum + d.sales[i], 0) / (relevantHistoricalDays.length || 1));
-
-        const chartDatasets = [];
-
-        if (todayData) {
-            chartDatasets.push({
-                type: 'bar',
-                label: "Today's Half-Hourly Sales",
-                data: todayData.raw,
-                backgroundColor: todayData.raw.map(value => value >= avgSales[todayData.raw.indexOf(value)] ? 'rgba(50, 205, 50, 0.7)' : 'rgba(255, 105, 180, 0.7)'),
-                yAxisID: 'y',
+        if (currentChartType === 'heatmap') {
+             const heatmapData = historicalData.flatMap(day => {
+                const dayIndex = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(day.dayOfWeek);
+                return day.sales.map((value, timeIndex) => ({ x: timeIndex, y: dayIndex, v: value }));
             });
-            chartDatasets.push({
-                type: 'line',
-                label: "Today's Cumulative Sales",
-                data: todayData.data,
-                borderColor: '#00BFFF',
-                backgroundColor: 'rgba(0, 191, 255, 0.1)',
-                fill: true,
-                yAxisID: 'y1',
-                tension: 0.4,
-            });
-        }
-
-        if (goalLineCheckbox.checked && relevantHistoricalDays.length > 0) {
-            chartDatasets.push({
-                type: 'line',
-                label: `Average ${dayOfWeek} Sales`,
-                data: avgSales,
-                borderColor: 'rgba(255, 215, 0, 0.8)',
-                borderDash: [5, 5],
-                pointRadius: 0,
-                fill: false,
-                yAxisID: 'y',
-            });
-        }
-        
-        const chartConfig = {
-            data: {
-                labels: timeSlots,
-                datasets: chartDatasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                scales: {
-                    x: {
-                        stacked: true,
+            chartConfig = {
+                type: 'matrix',
+                data: { datasets: [{
+                    label: 'Sales Heatmap (£)', data: heatmapData,
+                    backgroundColor: c => `rgba(0, 191, 255, ${Math.min(0.1 + ((c.dataset.data[c.dataIndex]?.v || 0) / 150), 1)})`,
+                    borderColor: 'rgba(26, 26, 46, 0.5)', borderWidth: 1,
+                    width: ({chart}) => (chart.chartArea || {}).width / timeSlots.length - 1,
+                    height: ({chart}) => (chart.chartArea || {}).height / 7 - 1,
+                }] },
+                options: { responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'category', labels: timeSlots, ticks: { autoSkip: true, maxTicksLimit: 10 }, grid: { display: false } },
+                        y: { type: 'category', labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], offset: true, grid: { display: false } }
                     },
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: {
-                            display: true,
-                            text: 'Half-Hourly Sales (£)'
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { title:()=>'', label: c => `£${c.raw.v.toFixed(2)}` } } }
+                }
+            };
+        } else {
+            const yAxisTitle = currentChartType === 'bar' ? 'Sales per Interval (£)' : 'Cumulative Sales (£)';
+            const finalDatasets = datasets.map(ds => ({
+                ...ds,
+                data: currentChartType === 'bar' ? ds.raw : ds.data,
+                type: currentChartType,
+                backgroundColor: ds.backgroundColor || (ds.borderColor + '1A')
+            }));
+            chartConfig = {
+                type: 'line', data: { labels: timeSlots, datasets: finalDatasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: { y: { title: { display: true, text: yAxisTitle } } },
+                    plugins: { legend: { position: 'bottom' } },
+                    layout: {
+                        padding: {
+                            top: 10,
+                            right: 20,
+                            bottom: 10,
+                            left: 10
                         }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Cumulative Sales (£)'
-                        },
-                        grid: {
-                            drawOnChartArea: false,
-                        },
-                    },
-                },
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                    },
-                },
-            },
-        };
-
+                    }
+                }
+            };
+        }
         salesChart = new Chart(ctx, chartConfig);
     };
-
 
     const generateInsights = (todayData, comparisonData) => {
         insightsContent.innerHTML = '';
