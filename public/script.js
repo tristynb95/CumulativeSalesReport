@@ -115,43 +115,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleFile = async (file) => {
         if (!file || !currentUser) return;
         updateFileStatus(`Uploading and processing ${file.name}...`, false);
-
+    
         try {
             const token = await currentUser.getIdToken();
             const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData';
-
-            // Use FormData to correctly handle file uploads
+    
             const formData = new FormData();
-            formData.append('file', file, file.name); // 'file' is the fieldname your function expects
-
+            formData.append('file', file, file.name);
+    
             const response = await fetch(functionUrl, {
                 method: 'POST',
                 headers: {
-                    // Do NOT set Content-Type; the browser will set it to multipart/form-data with the correct boundary
                     'Authorization': `Bearer ${token}`
                 },
                 body: formData,
             });
-
-            // Improved error handling for both JSON and text responses
+    
             if (!response.ok) {
-                let errorMessage = `Upload failed with status: ${response.status}`;
+                // Read the body as text ONCE.
+                const errorText = await response.text();
+                let errorMessage = errorText;
                 try {
-                    const errorBody = await response.json();
-                    errorMessage = errorBody.error || JSON.stringify(errorBody);
+                    // Try to parse it as JSON, but use the text if it fails.
+                    const errorJson = JSON.parse(errorText);
+                    errorMessage = errorJson.error || JSON.stringify(errorJson);
                 } catch (e) {
-                    // If the error response is not JSON, use its text content
-                    const textError = await response.text();
-                    errorMessage = textError || 'Processing failed on the server.';
+                    // It wasn't JSON, so we'll just use the raw text.
                 }
-                throw new Error(errorMessage);
+                throw new Error(errorMessage || `Upload failed with status: ${response.status}`);
             }
-
+    
             const data = await response.json();
             updateFileStatus(data.message, false);
             localStorage.setItem('savedFileName', file.name);
-            loadFromFirestore(); // Reload data after successful processing
-
+            loadFromFirestore();
+    
         } catch (error) {
             console.error('Upload Error:', error);
             updateFileStatus(`Error: ${error.message}`, true);
