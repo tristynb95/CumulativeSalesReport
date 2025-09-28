@@ -19,11 +19,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const lineColors = ['#8A2BE2', '#00BFFF', '#32CD32', '#FF69B4', '#FFD700', '#1E90FF'];
     const comparisonModes = {
-        average: 'Average Weekday',
-        top_weekday: 'Record By Weekday',
-        worst_days: 'Lowest Sales',
-        specific: 'Specific Days',
-        same_day_last_week: 'Last Week',
+        average: 'Day of Week (Average)',
+        top_weekday: 'Day of Week (Record High)',
+        lowest_by_weekday: 'Record Sales (Lowest)',
+        worst_days: 'Day of Week (Record Low)',
+        peak_hour: 'Lowest Sales',
+        specific: 'Specific Day(s)',
+        same_day_last_week: 'Same Day Last Week',
         same_date_last_year: 'Last Year (Date)',
         same_day_last_year: 'Last Year (Day)',
     };
@@ -555,6 +557,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 return top5Days.map((day, i) => createDataset(day, i));
+            }
+            case 'lowest_by_weekday': {
+                const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+                const lowest5Days = historicalData
+                    .filter(d => d.dayOfWeek === dayOfWeek)
+                    .sort((a, b) => a.totalSales - b.totalSales)
+                    .slice(0, 5);
+                
+                if (!lowest5Days.length) {
+                    chartError.textContent = `Not enough historical data for ${dayOfWeek}s.`;
+                    return null;
+                }
+                
+                return lowest5Days.map((day, i) => createDataset(day, i));
             }
             case 'specific': case 'worst_days': {
                 const checked = Array.from(document.querySelectorAll('#additional-controls input:checked'));
