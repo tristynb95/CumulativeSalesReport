@@ -152,7 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
         } catch (error) {
             console.error('Upload Error:', error);
-            updateFileStatus(`Error: ${error.message}`, true);
+            // This makes sure that the error displayed is the one from the server
+            const errorMessage = error.message.includes("status") ? "An unexpected error occurred during upload." : error.message;
+            updateFileStatus(`Error: ${errorMessage}`, true);
         }
     };
 
