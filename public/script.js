@@ -25,8 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
         worst_days: 'Record Sales (Lowest)',
         specific: 'Specific Day(s)',
         same_day_last_week: 'Same Day Last Week',
-        same_date_last_year: 'Last Year (Date)',
-        same_day_last_year: 'Last Year (Day)',
+        same_date_last_year: 'Same Date Last Year',
+        same_day_last_year: 'Same Day Last Year',
     };
 
     // --- DOM ELEMENTS --- //
