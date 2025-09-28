@@ -825,7 +825,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const kpis = [
             { hero: true, title: "Today's Total Sales", value: `£${todayTotal.toFixed(2)}`, change: change, label: comparisonLabel },
             { title: "Projected Sales", value: `~ £${projectedSales.toFixed(2)}`, label: 'based on current run-rate' },
-            { title: "Avg. Transaction", value: `£${(todayTotal / (todayData.raw.filter(v => v > 0).length || 1)).toFixed(2)}`, label: 'per active half-hour' },
+            { title: "Avg. Sales", value: `£${(todayTotal / (todayData.raw.filter(v => v > 0).length || 1)).toFixed(2)}`, label: 'per active half-hour' },
             { title: "Peak 2 Hours", value: peak2HoursResult.label, label: 'highest sales interval' }
         ];
 
