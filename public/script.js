@@ -8,9 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isPeakHighlightVisible = false; // To toggle highlight
 
     // --- FIREBASE INITIALIZATION ---
-    // Firebase is now initialized automatically by the /__/firebase/init.js script
     const auth = firebase.auth();
-    const db = firebase.firestore();
 
     const timeSlots = Array.from({ length: 28 }, (_, i) => {
         const hour = Math.floor(i / 2) + 5;
@@ -86,77 +84,136 @@ document.addEventListener('DOMContentLoaded', () => {
         populateComparisonModes();
         setupEventListeners();
         setupChartDefaults();
-        loadFromFirestore();
+        loadFromLocalStorage();
     };
 
-    const loadFromFirestore = () => {
-        if (!currentUser) return;
-        updateFileStatus("Loading historical data from database...", false);
-        
-        db.collection("users").doc(currentUser.uid).collection("dailySales").orderBy("date", "desc").get()
-          .then((querySnapshot) => {
-              historicalData = [];
-              querySnapshot.forEach((doc) => historicalData.push(doc.data()));
-              if (historicalData.length > 0) {
-                  const savedFileName = localStorage.getItem('savedFileName');
-                  updateUIWithLoadedData(savedFileName || 'Database');
-                  updateFileStatus(`${historicalData.length} records loaded from database.`);
-                  handleUpdateChart(); 
-              } else {
-                  updateFileStatus("No historical data found. Upload a file to start.", false);
-              }
-          })
-          .catch((error) => {
-              console.error("Error loading data from Firestore:", error);
-              updateFileStatus("Error loading from database.", true);
-          });
-    };
-    
-    const handleFile = async (file) => {
-        if (!file || !currentUser) return;
-        updateFileStatus(`Uploading and processing ${file.name}...`, false);
-    
-        try {
-            const token = await currentUser.getIdToken();
-            const functionUrl = 'https://us-central1-cumulativesalesreport.cloudfunctions.net/processSalesData';
-    
-            const formData = new FormData();
-            formData.append('file', file, file.name);
-    
-            const response = await fetch(functionUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData,
-            });
-    
-            if (!response.ok) {
-                // Read the body as text ONCE.
-                const errorText = await response.text();
-                let errorMessage = errorText;
-                try {
-                    // Try to parse it as JSON, but use the text if it fails.
-                    const errorJson = JSON.parse(errorText);
-                    errorMessage = errorJson.error || JSON.stringify(errorJson);
-                } catch (e) {
-                    // It wasn't JSON, so we'll just use the raw text.
-                }
-                throw new Error(errorMessage || `Upload failed with status: ${response.status}`);
+    const loadFromLocalStorage = () => {
+        const savedData = localStorage.getItem('historicalSalesData');
+        const savedFileName = localStorage.getItem('savedFileName');
+        if (savedData) {
+            historicalData = JSON.parse(savedData);
+            if (historicalData.length > 0) {
+                updateUIWithLoadedData(savedFileName || 'Local Data');
+                updateFileStatus(`${historicalData.length} records loaded from local storage.`);
+                handleUpdateChart();
             }
-    
-            const data = await response.json();
-            updateFileStatus(data.message, false);
-            localStorage.setItem('savedFileName', file.name);
-            loadFromFirestore();
-    
-        } catch (error) {
-            console.error('Upload Error:', error);
-            // This makes sure that the error displayed is the one from the server
-            const errorMessage = error.message.includes("status") ? "An unexpected error occurred during upload." : error.message;
-            updateFileStatus(`Error: ${errorMessage}`, true);
+        } else {
+            updateFileStatus("No historical data found. Upload a file to start.", false);
         }
     };
+
+    const handleFile = (file) => {
+        if (!file) return;
+        updateFileStatus(`Processing ${file.name}...`, false);
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = e.target.result;
+            let workbook;
+            if (file.name.endsWith('.csv')) {
+                // For CSV, we need to parse it manually
+                const csvData = new TextDecoder("utf-8").decode(data);
+                const rows = csvData.split('\n').map(row => row.split(','));
+                workbook = {
+                    SheetNames: ['Sheet1'],
+                    Sheets: {
+                        'Sheet1': XLSX.utils.aoa_to_sheet(rows)
+                    }
+                };
+
+            } else {
+                 workbook = XLSX.read(data, {
+                    type: 'array'
+                });
+            }
+
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const json = XLSX.utils.sheet_to_json(worksheet, {
+                header: 1
+            });
+            processAndStoreData(json, file.name);
+        };
+        reader.onerror = () => {
+            updateFileStatus('Failed to read file.', true);
+        };
+
+        if (file.name.endsWith('.csv')) {
+            reader.readAsArrayBuffer(file);
+        } else {
+            reader.readAsArrayBuffer(file);
+        }
+    };
+    
+    const processAndStoreData = (jsonData, fileName) => {
+        const header = jsonData[0].map(h => String(h || "").trim());
+        historicalData = [];
+
+        for (let i = 1; i < jsonData.length; i++) {
+            const rowData = jsonData[i];
+            if (!rowData || rowData.length < 2) continue;
+
+            const rowObject = {};
+            header.forEach((key, j) => {
+                rowObject[key] = rowData[j];
+            });
+
+            const date = parseDDMMYYYY(Object.values(rowObject)[0]);
+            if (!date) continue;
+
+            const alignedSales = Array(timeSlots.length).fill(0);
+            header.slice(1).forEach((slot) => {
+                const mainIndex = timeSlots.indexOf(slot);
+                if (mainIndex !== -1 && rowObject[slot]) {
+                    alignedSales[mainIndex] = parseFloat(rowObject[slot]) || 0;
+                }
+            });
+
+            const totalSales = alignedSales.reduce((a, b) => a + b, 0);
+            if (totalSales === 0) continue;
+
+            const docId = date.toISOString().split("T")[0];
+            const dayData = {
+                id: docId,
+                date: date.toISOString(),
+                dayOfWeek: date.toLocaleDateString("en-GB", {
+                    weekday: "long",
+                    timeZone: "UTC",
+                }),
+                sales: alignedSales,
+                totalSales,
+            };
+            historicalData.push(dayData);
+        }
+
+        if (historicalData.length > 0) {
+            localStorage.setItem('historicalSalesData', JSON.stringify(historicalData));
+            localStorage.setItem('savedFileName', fileName);
+            updateUIWithLoadedData(fileName);
+        } else {
+            updateFileStatus("No valid data found in the file.", true);
+        }
+    };
+
+    const parseDDMMYYYY = (dateInput) => {
+        if (!dateInput) return null;
+        if (typeof dateInput === 'number') { // Handle Excel date serial number
+            const d = new Date(Date.UTC(1900, 0, dateInput - 1));
+            return isNaN(d.getTime()) ? null : d;
+        }
+        const dateString = String(dateInput);
+        const parts = dateString.split(/[/.-]/);
+        if (parts.length === 3) {
+            const [day, month, year] = parts.map(Number);
+            if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+            const fullYear = year < 100 ? 2000 + year : year;
+            const d = new Date(Date.UTC(fullYear, month - 1, day));
+            return isNaN(d.getTime()) ? null : d;
+        }
+        const d = new Date(dateString);
+        return isNaN(d.getTime()) ? null : d;
+    };
+    
 
     // --- UI & EVENT LISTENERS --- //
     const updateFileStatus = (message, isError = false) => {
@@ -341,6 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboardTitleText.textContent = 'Sales Dashboard';
         localStorage.removeItem('savedFileName');
         localStorage.removeItem('todaysSalesData');
+        localStorage.removeItem('historicalSalesData');
     };
 
     const toggleControlPanel = () => {
