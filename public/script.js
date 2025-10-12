@@ -111,7 +111,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = e.target.result;
             let workbook;
             if (file.name.endsWith('.csv')) {
-                // For CSV, we need to parse it manually
                 const csvData = new TextDecoder("utf-8").decode(data);
                 const rows = csvData.split('\n').map(row => row.split(','));
                 workbook = {
@@ -589,18 +588,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (comparisonData) datasets.push(...comparisonData);
         }
     
-        if (currentChartType === 'pacing' && !todayDataset) {
-            chartError.textContent = "Pacing analysis requires today's sales data to be pasted.";
-            if (salesChart) salesChart.destroy();
-            chartPlaceholder.style.display = 'flex';
-            kpiContainer.innerHTML = '';
-            insightsContent.innerHTML = '<p class="no-data-text">Paste today\'s data for pacing analysis.</p>';
-            return;
-        }
-         if (datasets.length === 0 && !['heatmap', 'pacing'].includes(currentChartType)) {
-            chartError.textContent = "No data to generate chart. Select a comparison or paste today's sales.";
-            if (salesChart) salesChart.destroy();
-            chartPlaceholder.style.display = 'flex';
+        if (datasets.length === 0 && !['heatmap', 'pacing'].includes(currentChartType)) {
+            chartError.textContent = "No data available to generate chart. Please upload a file.";
             return;
         }
     
@@ -817,7 +806,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             case 'specific': case 'worst_days': case 'record_highs': {
                 const checked = Array.from(document.querySelectorAll('#additional-controls input:checked'));
-                if (checked.length === 0) return null;
+                if (!checked.length) { chartError.textContent = 'Please select at least one day.'; return null; }
                 return checked.slice(0, 10).map((box, i) => {
                     const dayData = historicalData.find(d => d.id === box.value);
                     return dayData ? createDataset(dayData, i) : null;
