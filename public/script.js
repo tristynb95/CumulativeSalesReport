@@ -80,35 +80,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- INITIALIZATION & DATA HANDLING --- //
     const init = () => {
+        // 1. Basic UI and config setup
         salesDateInput.valueAsDate = new Date();
         populateComparisonModes();
         setupEventListeners();
         setupChartDefaults();
-        loadFromLocalStorage();
 
-        const savedTodaysSales = localStorage.getItem('todaysSalesData');
-        if (savedTodaysSales) {
-            todaysSalesInput.value = savedTodaysSales;
-            handlePastedDataUpdate();
-        }
-
-        const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
-        renderAdditionalControls(selectedMode || 'average');
-    };
-
-    const loadFromLocalStorage = () => {
+        // 2. Load all persisted data from localStorage
         const savedData = localStorage.getItem('historicalSalesData');
         const savedFileName = localStorage.getItem('savedFileName');
+        const savedTodaysSales = localStorage.getItem('todaysSalesData');
+
+        // 3. Update UI state based on loaded data
+        if (savedTodaysSales) {
+            todaysSalesInput.value = savedTodaysSales;
+            handlePastedDataUpdate(); // This also updates the date picker
+        }
+
         if (savedData) {
             historicalData = JSON.parse(savedData);
-            if (historicalData.length > 0) {
-                updateUIWithLoadedData(savedFileName || 'Local Data');
-                updateFileStatus(`${historicalData.length} records loaded from local storage.`);
-            }
+            fileNameEl.textContent = savedFileName || 'Local Data';
+            fileInfoContainer.classList.remove('hidden');
+            dropZone.style.display = 'none';
+            analysisPanel.classList.remove('disabled');
+            generatePanel.classList.remove('disabled');
+            updateFileStatus(`${historicalData.length} records loaded.`);
         } else {
             updateFileStatus("No historical data found. Upload a file to start.", false);
         }
+        
+        // 4. Render controls for the default mode immediately
+        const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
+        renderAdditionalControls(selectedMode || 'average');
+
+        // 5. Generate the initial chart if data is available
+        if (historicalData.length > 0 || todaysSalesInput.value.trim() !== '') {
+            handleUpdateChart();
+        }
     };
+
 
     const handleFile = (file) => {
         if (!file) return;
@@ -208,7 +218,18 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('historicalSalesData', JSON.stringify(historicalData));
             localStorage.setItem('savedFileName', fileName);
             updateFileStatus(`Successfully processed ${historicalData.length} records.`, false);
-            updateUIWithLoadedData(fileName);
+            
+            // Update UI after new file is loaded
+            fileNameEl.textContent = fileName;
+            fileInfoContainer.classList.remove('hidden');
+            dropZone.style.display = 'none';
+            analysisPanel.classList.remove('disabled');
+            generatePanel.classList.remove('disabled');
+
+            const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
+            renderAdditionalControls(selectedMode);
+            handleUpdateChart();
+
         } else {
             updateFileStatus("No valid sales data found in the file.", true);
         }
@@ -261,28 +282,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const trigger = wrapper.querySelector('.custom-select-trigger span');
                 const nativeSelect = wrapper.querySelector('select');
                 const options = wrapper.querySelectorAll('.custom-option');
-
-                nativeSelect.value = dayOfWeek;
-                if (trigger) trigger.textContent = dayOfWeek;
-                options.forEach(opt => {
-                    opt.classList.toggle('selected', opt.dataset.value === dayOfWeek);
-                });
+                if(nativeSelect && trigger && options.length > 0){
+                    nativeSelect.value = dayOfWeek;
+                    trigger.textContent = dayOfWeek;
+                    options.forEach(opt => {
+                        opt.classList.toggle('selected', opt.dataset.value === dayOfWeek);
+                    });
+                }
             }
         }
-    };
-    
-    const updateUIWithLoadedData = (fileName) => {
-        fileNameEl.textContent = fileName;
-        fileInfoContainer.classList.remove('hidden');
-        dropZone.style.display = 'none';
-        analysisPanel.classList.remove('disabled');
-        generatePanel.classList.remove('disabled');
-        updateFileStatus(`${historicalData.length} records loaded.`);
-        handleUpdateChart();
-        
-        const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
-        renderAdditionalControls(selectedMode);
-        
     };
 
     const peakHighlightPlugin = {
