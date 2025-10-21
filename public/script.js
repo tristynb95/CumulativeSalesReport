@@ -43,6 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const generatePanel = document.getElementById('generate-panel');
     const chartPlaceholder = document.getElementById('chart-placeholder');
     const fullscreenBtn = document.getElementById('fullscreen-btn');
+    const mainChartContainer = document.querySelector('.main-chart-container');
+    const chartWrapper = document.getElementById('chart-wrapper');
+    const fullscreenIcon = fullscreenBtn?.querySelector('i');
     const fileInfoContainer = document.getElementById('file-info-container');
     const fileNameEl = document.getElementById('file-name');
     const deleteFileBtn = document.getElementById('delete-file-btn');
@@ -64,6 +67,66 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelClearBtn = document.getElementById('cancel-clear-btn');
     const selectedDatesDisplay = document.getElementById('selected-dates-display');
     const selectedDatesList = document.getElementById('selected-dates-list');
+
+    let chartResizeObserver = null;
+    let pendingChartResizeFrame = null;
+    let pendingChartResizeTimeout = null;
+
+    const runChartResize = () => {
+        if (!salesChart) return;
+        salesChart.resize();
+        salesChart.update('none');
+    };
+
+    const refreshChartLayout = (withFollowUp = true) => {
+        if (!salesChart) return;
+
+        if (pendingChartResizeFrame) {
+            cancelAnimationFrame(pendingChartResizeFrame);
+        }
+
+        pendingChartResizeFrame = requestAnimationFrame(() => {
+            pendingChartResizeFrame = null;
+            runChartResize();
+        });
+
+        if (withFollowUp) {
+            if (pendingChartResizeTimeout) {
+                clearTimeout(pendingChartResizeTimeout);
+            }
+            pendingChartResizeTimeout = setTimeout(() => {
+                pendingChartResizeTimeout = null;
+                runChartResize();
+            }, 200);
+        }
+    };
+
+    const initChartResizeObserver = () => {
+        if (!window.ResizeObserver || chartResizeObserver || !mainChartContainer) return;
+        chartResizeObserver = new ResizeObserver(() => refreshChartLayout(false));
+        chartResizeObserver.observe(mainChartContainer);
+        if (chartWrapper && chartWrapper !== mainChartContainer) {
+            chartResizeObserver.observe(chartWrapper);
+        }
+    };
+
+    const handleFullscreenChange = () => {
+        const isChartFullscreen = document.fullscreenElement === mainChartContainer ||
+            document.webkitFullscreenElement === mainChartContainer;
+
+        if (fullscreenIcon) {
+            fullscreenIcon.classList.toggle('fa-expand', !isChartFullscreen);
+            fullscreenIcon.classList.toggle('fa-compress', isChartFullscreen);
+        }
+
+        refreshChartLayout(true);
+
+        if (!isChartFullscreen) {
+            setTimeout(() => refreshChartLayout(true), 350);
+        }
+    };
+
+    const handleWindowResize = () => refreshChartLayout(true);
 
 
     // --- AUTHENTICATION LISTENER --- //
@@ -338,7 +401,22 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteFileBtn.addEventListener('click', handleDeleteFile);
         updateChartBtn.addEventListener('click', handleUpdateChart);
         comparisonModesContainer.addEventListener('click', handleModeSelection);
-        fullscreenBtn.addEventListener('click', () => document.querySelector('.main-chart-container').requestFullscreen());
+        fullscreenBtn.addEventListener('click', () => {
+            if (!mainChartContainer) return;
+            if (document.fullscreenElement === mainChartContainer || document.webkitFullscreenElement === mainChartContainer) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            } else {
+                if (mainChartContainer.requestFullscreen) {
+                    mainChartContainer.requestFullscreen();
+                } else if (mainChartContainer.webkitRequestFullscreen) {
+                    mainChartContainer.webkitRequestFullscreen();
+                }
+            }
+        });
         chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
         panelToggleBtn.addEventListener('click', toggleControlPanel);
         todaysSalesInput.addEventListener('input', handlePastedDataUpdate);
@@ -379,9 +457,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         setupDragAndDrop();
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
-        });
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        window.addEventListener('resize', handleWindowResize);
+        window.addEventListener('orientationchange', handleWindowResize);
+
+        initChartResizeObserver();
     };
 
     const togglePeakHourHighlight = () => {
@@ -1035,6 +1116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
         salesChart = new Chart(ctx, chartConfig);
+        refreshChartLayout();
     };
 
     const generateInsights = (todayData, comparisonData) => {
