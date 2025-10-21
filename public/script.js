@@ -69,41 +69,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedDatesList = document.getElementById('selected-dates-list');
 
     let chartResizeObserver = null;
-    let pendingChartResizeFrame = null;
-    let pendingChartResizeTimeout = null;
 
-    const runChartResize = () => {
+    const refreshChartLayout = () => {
         if (!salesChart) return;
-        salesChart.resize();
-        salesChart.update('none');
-    };
-
-    const refreshChartLayout = (withFollowUp = true) => {
-        if (!salesChart) return;
-
-        if (pendingChartResizeFrame) {
-            cancelAnimationFrame(pendingChartResizeFrame);
-        }
-
-        pendingChartResizeFrame = requestAnimationFrame(() => {
-            pendingChartResizeFrame = null;
-            runChartResize();
+        requestAnimationFrame(() => {
+            if (!salesChart) return;
+            salesChart.resize();
+            salesChart.update('none');
         });
-
-        if (withFollowUp) {
-            if (pendingChartResizeTimeout) {
-                clearTimeout(pendingChartResizeTimeout);
-            }
-            pendingChartResizeTimeout = setTimeout(() => {
-                pendingChartResizeTimeout = null;
-                runChartResize();
-            }, 200);
-        }
     };
 
     const initChartResizeObserver = () => {
         if (!window.ResizeObserver || chartResizeObserver || !mainChartContainer) return;
-        chartResizeObserver = new ResizeObserver(() => refreshChartLayout(false));
+        chartResizeObserver = new ResizeObserver(() => refreshChartLayout());
         chartResizeObserver.observe(mainChartContainer);
         if (chartWrapper && chartWrapper !== mainChartContainer) {
             chartResizeObserver.observe(chartWrapper);
@@ -119,14 +97,12 @@ document.addEventListener('DOMContentLoaded', () => {
             fullscreenIcon.classList.toggle('fa-compress', isChartFullscreen);
         }
 
-        refreshChartLayout(true);
+        refreshChartLayout();
 
         if (!isChartFullscreen) {
-            setTimeout(() => refreshChartLayout(true), 350);
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
         }
     };
-
-    const handleWindowResize = () => refreshChartLayout(true);
 
 
     // --- AUTHENTICATION LISTENER --- //
@@ -459,8 +435,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setupDragAndDrop();
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-        window.addEventListener('resize', handleWindowResize);
-        window.addEventListener('orientationchange', handleWindowResize);
 
         initChartResizeObserver();
     };
