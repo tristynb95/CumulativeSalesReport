@@ -257,17 +257,25 @@ body {
 .dashboard-grid {
     display: grid;
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+        "kpis"
+        "chart";
     gap: 1.5rem;
     flex-grow: 1;
     min-height: 0;
 }
 
 .main-chart-container {
+    grid-area: chart;
     display: flex;
     flex-direction: column;
     min-height: 0;
     overflow: hidden;
+}
+
+.kpi-container-wrapper {
+    grid-area: kpis;
 }
 
 .kpi-container {
@@ -416,13 +424,9 @@ body {
 /* --- RESPONSIVE ADJUSTMENTS --- */
 @media (max-width: 1600px) {
     .dashboard-grid {
-        grid-template-rows: auto 1fr;
-    }
-    .kpi-container-wrapper {
-        order: 1; 
+        grid-template-rows: auto minmax(0, 1fr);
     }
     .main-chart-container {
-        order: 2;
         min-height: 450px;
         margin-bottom: 5rem;
     }
