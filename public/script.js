@@ -15,7 +15,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const minute = i % 2 === 0 ? '00' : '30';
         return `${String(hour).padStart(2, '0')}:${minute}`;
     });
-    const lineColors = ['#8A2BE2', '#00BFFF', '#32CD32', '#FF69B4', '#FFD700', '#1E90FF', '#FF4500', '#DA70D6', '#00CED1', '#ADFF2F', '#FF6347', '#4682B4'];
+    const lineColors = [
+        '#8A2BE2', // Vibrant violet (primary accent)
+        '#00BFFF', // Electric sky blue (secondary accent)
+        '#FF69B4', // Hot pink highlight
+        '#32CD32', // Lime success tone
+        '#FFD700', // Golden highlight
+        '#6C5CE7', // Soft indigo to extend the violet family
+        '#1ABC9C', // Teal accent to mirror glass elements
+        '#FF8C00', // Warm amber for contrast
+        '#4DD2FF', // Lighter cyan accent
+        '#D66BFF', // Orchid glow
+        '#2ED573', // Fresh verdant green
+        '#FF6F61', // Coral pop
+        '#7F5AF0', // Deep lavender
+        '#00CED1', // Dark turquoise accent
+        '#FFB347', // Soft sunset orange
+        '#9B59B6', // Amethyst depth
+    ];
+
+    const createAlphaColor = (hexColor, alpha = 0.18) => {
+        if (!hexColor) return `rgba(255, 255, 255, ${alpha})`;
+        const sanitized = hexColor.replace('#', '').trim();
+        if (!sanitized) return `rgba(255, 255, 255, ${alpha})`;
+        const normalized = sanitized.length === 3
+            ? sanitized.split('').map(char => char + char).join('')
+            : sanitized.slice(0, 6);
+        const numeric = parseInt(normalized, 16);
+        const r = (numeric >> 16) & 255;
+        const g = (numeric >> 8) & 255;
+        const b = numeric & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
     const comparisonModes = {
         average: 'Day of Week (Average)',
         top_weekday: 'Day of Week (Record High)',
@@ -808,11 +839,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const salesDate = salesDateInput.valueAsDate || new Date();
         const utcDate = new Date(Date.UTC(salesDate.getFullYear(), salesDate.getMonth(), salesDate.getDate()));
 
-        const createDataset = (dayData, index, options = {}) => ({
-            label: options.label || new Date(dayData.date).toLocaleDateString('en-GB', { timeZone: 'UTC' }),
-            data: calculateCumulative(dayData.sales), raw: dayData.sales, borderColor: lineColors[index % lineColors.length],
-            borderWidth: 2, pointRadius: 0, tension: 0.4, fill: false, ...options
-        });
+        const createDataset = (dayData, index, options = {}) => {
+            const baseColor = options.borderColor || lineColors[index % lineColors.length];
+            return {
+                label: options.label || new Date(dayData.date).toLocaleDateString('en-GB', { timeZone: 'UTC' }),
+                data: calculateCumulative(dayData.sales),
+                raw: dayData.sales,
+                borderColor: baseColor,
+                backgroundColor: options.backgroundColor || createAlphaColor(baseColor),
+                pointBackgroundColor: options.pointBackgroundColor || baseColor,
+                pointBorderColor: options.pointBorderColor || createAlphaColor(baseColor, 0.6),
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.4,
+                fill: false,
+                ...options
+            };
+        };
 
         const findAndFormat = (targetDate, label) => {
             const day = historicalData.find(d => d.id === targetDate.toISOString().split('T')[0]);
