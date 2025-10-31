@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedDatesList = document.getElementById('selected-dates-list');
 
     let chartResizeObserver = null;
+    let fullscreenResizeTimers = [];
 
     const refreshChartLayout = () => {
         if (!salesChart) return;
@@ -77,6 +78,20 @@ document.addEventListener('DOMContentLoaded', () => {
             salesChart.resize();
             salesChart.update('none');
         });
+    };
+
+    const clearFullscreenResizeTimers = () => {
+        fullscreenResizeTimers.forEach(timer => clearTimeout(timer));
+        fullscreenResizeTimers = [];
+    };
+
+    const scheduleChartResize = (delays = []) => {
+        if (!salesChart) return;
+        clearFullscreenResizeTimers();
+        refreshChartLayout();
+        fullscreenResizeTimers = delays.map(delay =>
+            setTimeout(() => refreshChartLayout(), delay)
+        );
     };
 
     const initChartResizeObserver = () => {
@@ -97,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fullscreenIcon.classList.toggle('fa-compress', isChartFullscreen);
         }
 
-        refreshChartLayout();
+        scheduleChartResize(isChartFullscreen ? [150] : [150, 400]);
 
         if (!isChartFullscreen) {
             setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
@@ -940,7 +955,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     const renderChart = (datasets) => {
-        if (salesChart) salesChart.destroy();
+        if (salesChart) {
+            salesChart.destroy();
+            clearFullscreenResizeTimers();
+        }
         chartPlaceholder.style.display = 'none';
         const ctx = document.getElementById('salesChart').getContext('2d');
         let chartConfig;
