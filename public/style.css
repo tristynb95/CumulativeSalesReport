@@ -428,7 +428,7 @@ body {
     }
     .main-chart-container {
         min-height: 450px;
-        margin-bottom: 5rem;
+        /* Removed large bottom margin to keep it tight */
     }
     .dashboard-area {
         padding: 1.5rem;
@@ -443,23 +443,21 @@ body {
         --panel-width: 320px;
     }
     body {
-        overflow: auto;
+        overflow: auto; /* Allow scrolling on smaller screens */
     }
     .app-container {
         min-height: 100vh;
         height: auto;
-    }
-    .kpi-container {
-        grid-template-columns: 1fr 1fr;
-    }
-    .comparison-modes {
-        grid-template-columns: 1fr;
+        display: block; /* Switch from flex to block for stacking */
     }
     .control-panel {
         position: fixed;
+        top: 0;
+        left: 0;
         height: 100%;
-        box-shadow: 10px 0px 40px -20px rgba(0, 0, 0, 0.5);
+        z-index: 100; /* Ensure it's above other content */
         transform: translateX(-100%);
+        box-shadow: 10px 0 40px rgba(0,0,0,0.5);
     }
     .control-panel:not(.collapsed) {
         transform: translateX(0);
@@ -467,13 +465,44 @@ body {
     .control-panel.collapsed {
         transform: translateX(-100%);
     }
+    /* Toggle button adjustment */
     .panel-toggle-btn {
-        left: 0;
-        transform: translateX(50%);
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        transform: none;
+        z-index: 101;
     }
-     .control-panel:not(.collapsed) + .panel-toggle-btn {
+    .control-panel:not(.collapsed) + .panel-toggle-btn {
         left: var(--panel-width);
-     }
+        margin-left: 10px;
+    }
+
+    .dashboard-area {
+        margin-left: 0;
+        padding: 5rem 1rem 1rem 1rem; /* Top padding for toggle button space */
+        height: auto;
+        overflow: visible;
+    }
+
+    .dashboard-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .kpi-container {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+
+    .main-chart-container {
+        height: 500px; /* Fixed height on mobile/tablet */
+        min-height: unset;
+    }
+
+    .comparison-modes {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 600px) {

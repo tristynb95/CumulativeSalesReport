@@ -143,10 +143,19 @@ document.addEventListener('DOMContentLoaded', () => {
             fullscreenIcon.classList.toggle('fa-compress', isChartFullscreen);
         }
 
-        scheduleChartResize(isChartFullscreen ? [150] : [150, 400]);
+        // Immediate resize attempt
+        if (salesChart) {
+             salesChart.resize();
+        }
+
+        // Scheduled resizes to handle transition animations
+        scheduleChartResize([50, 150, 300, 500]);
 
         if (!isChartFullscreen) {
-            setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+            setTimeout(() => {
+                 window.dispatchEvent(new Event('resize'));
+                 if (salesChart) salesChart.resize();
+            }, 100);
         }
     };
 
@@ -193,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             updateFileStatus("No historical data found. Upload a file to start.", false);
         }
-        
+
         // 4. Render controls for the default mode immediately
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         renderAdditionalControls(selectedMode || 'average');
@@ -247,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.readAsArrayBuffer(file);
         }
     };
-    
+
     const processAndStoreData = (jsonData, fileName) => {
         if (!jsonData || jsonData.length < 2) {
             updateFileStatus("File is empty or contains no data rows.", true);
@@ -255,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const header = jsonData[0].map(h => String(h || "").trim());
         const rawData = jsonData.slice(1);
-        
+
         historicalData = [];
 
         rawData.forEach(rowData => {
@@ -265,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
             header.forEach((key, j) => {
                 rowObject[key] = rowData[j];
             });
-            
+
             const dateValue = Object.values(rowObject)[0];
             const date = parseDDMMYYYY(dateValue);
             if (!date) return;
@@ -303,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('historicalSalesData', JSON.stringify(historicalData));
             localStorage.setItem('savedFileName', fileName);
             updateFileStatus(`Successfully processed ${historicalData.length} records.`, false);
-            
+
             // Update UI after new file is loaded
             fileNameEl.textContent = fileName;
             fileInfoContainer.classList.remove('hidden');
@@ -342,7 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const d = new Date(dateString);
         return isNaN(d.getTime()) ? null : d;
     };
-    
+
 
     // --- UI & EVENT LISTENERS --- //
     const updateFileStatus = (message, isError = false) => {
@@ -351,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const saveTodaysSales = () => localStorage.setItem('todaysSalesData', todaysSalesInput.value);
-    
+
     const handlePastedDataUpdate = () => {
         saveTodaysSales(); // Keep saving to localStorage
 
@@ -361,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (date) {
             salesDateInput.valueAsDate = date;
             const dayOfWeek = date.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
-            
+
             const wrapper = document.querySelector('.custom-select-wrapper');
             if (wrapper) {
                 const trigger = wrapper.querySelector('.custom-select-trigger span');
@@ -384,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isPeakHighlightVisible && peakHourData) {
                 const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
                 const start = x.getPixelForValue(peakHourData.startIndex);
-                const end = x.getPixelForValue(peakHourData.endIndex + 1); 
+                const end = x.getPixelForValue(peakHourData.endIndex + 1);
 
                 ctx.save();
                 ctx.fillStyle = 'rgba(138, 43, 226, 0.2)';
@@ -400,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
         Chart.register(peakHighlightPlugin);
     };
-    
+
     const populateComparisonModes = () => {
         comparisonModesContainer.innerHTML = '';
         Object.entries(comparisonModes).forEach(([value, label]) => {
@@ -416,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
         insightsPanel.classList.toggle('is-visible');
         insightsOverlay.classList.toggle('is-visible');
     };
-    
+
     const setupEventListeners = () => {
         uploadBtn.addEventListener('click', () => excelFileInput.click());
         excelFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
@@ -442,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chartTypeSwitcher.addEventListener('click', handleChartTypeSwitch);
         panelToggleBtn.addEventListener('click', toggleControlPanel);
         todaysSalesInput.addEventListener('input', handlePastedDataUpdate);
-        
+
         insightsToggleBtn.addEventListener('click', toggleInsightsPanel);
         insightsCloseBtn.addEventListener('click', toggleInsightsPanel);
         insightsOverlay.addEventListener('click', toggleInsightsPanel);
@@ -459,7 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('clear-selection-btn').addEventListener('click', () => {
             confirmationModal.classList.remove('hidden');
         });
-        
+
         confirmClearBtn.addEventListener('click', () => {
             const checkboxes = additionalControlsContainer.querySelectorAll('input[type="checkbox"]');
             checkboxes.forEach(checkbox => checkbox.checked = false);
@@ -496,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         salesChart.update();
     };
-    
+
     const setupDragAndDrop = () => {
         ['dragover', 'drop'].forEach(eventName => dropZone.addEventListener(eventName, e => e.preventDefault()));
         dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
@@ -562,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (option) {
             const select = option.closest('.custom-select');
             const nativeSelect = select.previousElementSibling;
-            
+
             nativeSelect.value = option.dataset.value;
             select.querySelector('.custom-select-trigger span').textContent = option.textContent;
             select.querySelector('.custom-option.selected')?.classList.remove('selected');
@@ -577,7 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateSelectedDatesDisplay();
         }
     };
-    
+
     // --- DATA PARSING & PROCESSING --- //
     const parseTimeZoneReport = (pastedString) => {
         if (!pastedString || typeof pastedString !== "string") return { sales: null, date: null };
@@ -594,9 +603,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const day = parseInt(dateMatch[1], 10);
                 const month = parseInt(dateMatch[2], 10) - 1;
                 const year = parseInt(dateMatch[3], 10);
-                
+
                 const tempDate = new Date(Date.UTC(year, month, day));
-                
+
                 if (tempDate.getUTCFullYear() === year && tempDate.getUTCMonth() === month && tempDate.getUTCDate() === day) {
                     parsedDate = tempDate;
                 }
@@ -613,17 +622,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (match) {
                 const startTime = match[1];
                 const netSales = parseFloat(match[2].replace(/,/g, ''));
-                
+
                 const slotIndex = timeSlots.indexOf(startTime);
                 if (slotIndex !== -1) aggregatedSales[slotIndex] = netSales;
             }
         }
-        
+
         const totalParsedSales = aggregatedSales.reduce((a, b) => a + b, 0);
-        
-        return { 
-            sales: totalParsedSales > 0 ? aggregatedSales : null, 
-            date: parsedDate 
+
+        return {
+            sales: totalParsedSales > 0 ? aggregatedSales : null,
+            date: parsedDate
         };
     };
 
@@ -646,7 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let todayDataset = null;
         let projectedDataset = null;
         isPeakHighlightVisible = false;
-    
+
         if (todaysSalesInput.value.trim() !== '') {
             const parsedResult = parseTimeZoneReport(todaysSalesInput.value);
             if (!parsedResult.sales) {
@@ -655,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const lastSaleIndex = findLastSaleIndex(parsedResult.sales);
             const cumulativeSales = calculateCumulative(parsedResult.sales, lastSaleIndex);
-    
+
             todayDataset = {
                 label: `Today's Sales`,
                 data: cumulativeSales,
@@ -667,17 +676,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 fill: true,
                 backgroundColor: 'rgba(255, 105, 180, 0.1)'
             };
-    
+
             const projectedSales = calculateProjectedSales(parsedResult.sales, historicalData, salesDateInput.valueAsDate || new Date());
             const projectedCumulative = calculateCumulative(projectedSales.fullDay);
-    
+
             for (let i = 0; i < lastSaleIndex; i++) {
                 projectedCumulative[i] = null;
             }
             if(lastSaleIndex > -1) {
               projectedCumulative[lastSaleIndex] = cumulativeSales[lastSaleIndex];
             }
-    
+
             projectedDataset = {
                 label: 'Projected Sales',
                 data: projectedCumulative,
@@ -689,18 +698,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 borderDash: [5, 5]
             };
         }
-    
+
         let datasets = [];
         if (todayDataset) datasets.push(todayDataset);
         if (projectedDataset) datasets.push(projectedDataset);
-    
+
         const selectedMode = document.querySelector('#comparison-modes button.selected')?.dataset.mode;
         let comparisonData = null;
         if (selectedMode && historicalData.length > 0) {
             comparisonData = getComparisonData(selectedMode);
             if (comparisonData) datasets.push(...comparisonData);
         }
-    
+
         if (currentChartType === 'pacing' && !todayDataset) {
             chartError.textContent = "Pacing analysis requires today's sales data to be pasted.";
             if (salesChart) salesChart.destroy();
@@ -715,15 +724,15 @@ document.addEventListener('DOMContentLoaded', () => {
             chartPlaceholder.style.display = 'flex';
             return;
         }
-    
+
         renderChart(datasets);
         updateKpis(todayDataset, comparisonData);
         generateInsights(todayDataset, comparisonData);
     };
-    
+
     const renderAdditionalControls = (mode) => {
         additionalControlsContainer.innerHTML = '';
-        selectedDatesDisplay.classList.add('hidden'); 
+        selectedDatesDisplay.classList.add('hidden');
 
         if (mode === 'average') {
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -742,7 +751,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const dayOfWeekSelect = `<select id="day-of-week" class="form-input-hidden">${days.map(d => `<option value="${d}" ${d === currentDay ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
             const dayOfWeekOptions = days.map(d => `<span class="custom-option ${d === currentDay ? 'selected' : ''}" data-value="${d}">${d}</span>`).join('');
-            
+
             const dateRangeSelect = `<select id="date-range" class="form-input-hidden">${Object.entries(dateRanges).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}</select>`;
             const dateRangeOptions = Object.entries(dateRanges).map(([value, label], index) => `<span class="custom-option ${index === 0 ? 'selected' : ''}" data-value="${value}">${label}</span>`).join('');
 
@@ -783,12 +792,12 @@ document.addEventListener('DOMContentLoaded', () => {
             updateSelectedDatesDisplay();
         }
     };
-    
+
     const createCheckboxes = (mode) => {
         const div = document.createElement('div');
         let data, label;
         const sortAndSlice = (sortFn, slice) => [...historicalData].sort(sortFn).slice(0, slice);
-        
+
         switch (mode) {
             case 'record_highs':
                 data = sortAndSlice((a, b) => b.totalSales - a.totalSales, 10);
@@ -816,7 +825,7 @@ document.addEventListener('DOMContentLoaded', () => {
         div.appendChild(container);
         return div;
     };
-    
+
     const updateSelectedDatesDisplay = () => {
         const checked = Array.from(document.querySelectorAll('#additional-controls input:checked'));
         const clearButton = document.getElementById('clear-selection-btn');
@@ -917,12 +926,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     .filter(d => d.dayOfWeek === dayOfWeek)
                     .sort((a, b) => b.totalSales - a.totalSales)
                     .slice(0, 5);
-                
+
                 if (!top5Days.length) {
                     chartError.textContent = `Not enough historical data for ${dayOfWeek}s.`;
                     return null;
                 }
-                
+
                 return top5Days.map((day, i) => createDataset(day, i));
             }
             case 'lowest_by_weekday': {
@@ -931,12 +940,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     .filter(d => d.dayOfWeek === dayOfWeek)
                     .sort((a, b) => a.totalSales - b.totalSales)
                     .slice(0, 5);
-                
+
                 if (!lowest5Days.length) {
                     chartError.textContent = `Not enough historical data for ${dayOfWeek}s.`;
                     return null;
                 }
-                
+
                 return lowest5Days.map((day, i) => createDataset(day, i));
             }
             case 'specific': case 'worst_days': case 'record_highs': {
@@ -957,7 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return null;
     };
-    
+
     const calculatePacingMetrics = () => {
         const salesDate = salesDateInput.valueAsDate || new Date();
         const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
@@ -972,7 +981,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         timeSlots.forEach((_, i) => {
             const intervalSales = relevantDays.map(day => day.sales[i]).sort((a, b) => a - b);
-            
+
             if (intervalSales.length === 0) {
                 metrics.averages.push(0);
                 metrics.q1.push(0);
@@ -981,7 +990,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const avg = intervalSales.reduce((a, b) => a + b, 0) / intervalSales.length;
-            
+
             const q1Index = Math.floor(intervalSales.length / 4);
             const q3Index = Math.floor(intervalSales.length * 3 / 4);
 
@@ -1195,9 +1204,9 @@ document.addEventListener('DOMContentLoaded', () => {
             insightsContent.innerHTML = '<p class="no-data-text">Not enough data for insights.</p>';
         }
     };
-    
+
     const updateKpis = (todayData, comparisonData) => {
-        kpiContainer.innerHTML = ''; 
+        kpiContainer.innerHTML = '';
         const selectedDate = salesDateInput.valueAsDate || new Date();
         dashboardTitleText.textContent = `Live Sales Performance for ${selectedDate.toLocaleDateString('en-GB')}`;
 
@@ -1209,7 +1218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (lastSaleIndex === -1) {
              kpiContainer.innerHTML = '<p class="no-data-text">No sales recorded yet today.</p>'; return;
         }
-        
+
         const todayTotal = todayData.data[lastSaleIndex] || 0;
         let change = null;
         let comparisonLabel = 'vs. N/A';
@@ -1217,7 +1226,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (comparisonData?.[0]) {
             const comp = comparisonData[0];
             const comparisonValue = comp.raw.slice(0, lastSaleIndex + 1).reduce((a,b) => a+b, 0);
-            
+
             if (comparisonValue > 0) {
                 change = ((todayTotal - comparisonValue) / comparisonValue) * 100;
             }
@@ -1257,24 +1266,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const total = rawSales.reduce((a, b) => a + b, 0);
             return { total, fullDay: rawSales };
         }
-    
+
         const dayOfWeek = salesDate.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
         const relevantHistoricalDays = historicalData.filter(d => d.dayOfWeek === dayOfWeek);
-    
+
         let performanceFactor = 1;
         const intervalsPassed = lastSaleIndex + 1;
         const totalSoFar = rawSales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
-    
+
         if (relevantHistoricalDays.length > 0) {
             const historicalTotalForIntervalsPassed = relevantHistoricalDays.reduce((sum, day) => {
                 return sum + day.sales.slice(0, intervalsPassed).reduce((a, b) => a + b, 0);
             }, 0) / relevantHistoricalDays.length;
-    
+
             if (historicalTotalForIntervalsPassed > 0) {
                 performanceFactor = totalSoFar / historicalTotalForIntervalsPassed;
             }
         }
-    
+
         const historicalAverageSalesForRestOfDay = timeSlots.slice(intervalsPassed).map((_, i) => {
             const index = i + intervalsPassed;
             if (relevantHistoricalDays.length === 0) {
@@ -1283,21 +1292,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return relevantHistoricalDays.reduce((sum, d) => sum + d.sales[index], 0) / relevantHistoricalDays.length;
         });
-    
+
         const projectedRemainingSales = historicalAverageSalesForRestOfDay.map(avg => avg * performanceFactor);
-    
+
         const fullDaySales = [...rawSales.slice(0, intervalsPassed), ...projectedRemainingSales];
         const totalProjectedSales = fullDaySales.reduce((a, b) => a + b, 0);
-    
+
         return { total: totalProjectedSales, fullDay: fullDaySales };
     };
 
     const getPeak2Hours = (salesArray) => {
         if (!salesArray || salesArray.length < 4) return { label: 'N/A' };
-    
+
         let maxSum = 0;
         let peakStartIndex = -1;
-    
+
         for (let i = 0; i <= salesArray.length - 4; i++) {
             const currentSum = salesArray.slice(i, i + 4).reduce((a, b) => a + b, 0);
             if (currentSum > maxSum) {
@@ -1305,20 +1314,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 peakStartIndex = i;
             }
         }
-    
+
         if (peakStartIndex === -1 || maxSum === 0) return { label: 'N/A' };
-    
+
         const startTime = timeSlots[peakStartIndex];
         const endTimeSlotIndex = peakStartIndex + 3;
         const endTime = timeSlots[endTimeSlotIndex];
-    
+
         const [endHour, endMinute] = endTime.split(':').map(Number);
         const endDate = new Date();
         endDate.setHours(endHour, endMinute + 30, 0, 0);
-    
+
         const finalEndHour = String(endDate.getHours()).padStart(2, '0');
         const finalEndMinute = String(endDate.getMinutes()).padStart(2, '0');
-    
+
         return {
             label: `${startTime} - ${finalEndHour}:${finalEndMinute}`,
             startIndex: peakStartIndex,
@@ -1331,7 +1340,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const maxSales = Math.max(...salesArray);
         if (maxSales === 0) return 'N/A';
         const peakIndex = salesArray.indexOf(maxSales);
-        
+
         const startTime = timeSlots[peakIndex];
         const [hour, minute] = startTime.split(':').map(Number);
 
